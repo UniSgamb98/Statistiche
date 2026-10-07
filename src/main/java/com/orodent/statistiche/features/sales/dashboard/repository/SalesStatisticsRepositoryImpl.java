@@ -1,0 +1,207 @@
+package com.orodent.statistiche.features.sales.dashboard.repository;
+
+import com.orodent.statistiche.core.database.repository.RepositoryException;
+import com.orodent.statistiche.features.sales.dashboard.model.MonthlySales;
+import com.orodent.statistiche.features.sales.dashboard.model.SalesFilter;
+import com.orodent.statistiche.features.sales.dashboard.model.SalesRankingItem;
+import com.orodent.statistiche.features.sales.dashboard.model.SalesSummary;
+
+import java.math.BigDecimal;
+import java.sql.Connection;
+import java.sql.Date;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+
+public final class SalesStatisticsRepositoryImpl implements SalesStatisticsRepository {
+
+    private static final String SIGNED_REVENUE = """
+            CASE tipo_operazione
+                WHEN 'VENDITA' THEN COALESCE(importo_netto, 0)
+                ELSE -ABS(COALESCE(importo_netto, 0))
+            END
+            """;
+    private static final String SIGNED_QUANTITY = """
+            CASE tipo_operazione
+                WHEN 'VENDITA' THEN quantita
+                ELSE -ABS(quantita)
+            END
+            """;
+
+    private final Connection conn;
+
+    public SalesStatisticsRepositoryImpl(Connection conn) {
+        this.conn = Objects.requireNonNull(conn, "conn");
+    }
+
+    @Override
+    public List<Integer> findAvailableYears() {
+        String sql = """
+                SELECT DISTINCT YEAR(data_vendita) AS anno
+                FROM vendite_dettaglio
+                ORDER BY anno DESC
+                """;
+        try (PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            List<Integer> years = new ArrayList<>();
+            while (rs.next()) {
+                years.add(rs.getInt("anno"));
+            }
+            return List.copyOf(years);
+        } catch (SQLException e) {
+            throw new RepositoryException("Errore durante la lettura degli anni disponibili", e);
+        }
+    }
+
+    @Override
+    public SalesSummary loadSummary(SalesFilter filter) {
+        String sql = """
+                SELECT COALESCE(SUM(%s), 0) AS fatturato,
+                       COALESCE(SUM(%s), 0) AS quantita,
+                       COALESCE(SUM(sconto_importo), 0) AS sconto
+                FROM vendite_dettaglio
+                WHERE data_vendita BETWEEN ? AND ?
+                """.formatted(SIGNED_REVENUE, SIGNED_QUANTITY);
+        BigDecimal revenue;
+        BigDecimal quantity;
+        BigDecimal discount;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            setDateRange(ps, filter);
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                revenue = rs.getBigDecimal("fatturato");
+                quantity = rs.getBigDecimal("quantita");
+                discount = rs.getBigDecimal("sconto");
+            }
+            return new SalesSummary(
+                    revenue,
+                    quantity,
+                    countDistinct("codice_cliente", filter),
+                    countDistinct("documento_id", filter),
+                    discount
+            );
+        } catch (SQLException e) {
+            throw new RepositoryException("Errore durante il calcolo del riepilogo vendite", e);
+        }
+    }
+
+    private int countDistinct(String column, SalesFilter filter) throws SQLException {
+        String sql = "SELECT COUNT(DISTINCT " + column + ") AS totale "
+                + "FROM vendite_dettaglio WHERE data_vendita BETWEEN ? AND ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            setDateRange(ps, filter);
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getInt("totale");
+            }
+        }
+    }
+
+    @Override
+    public List<MonthlySales> loadMonthlySales(SalesFilter filter) {
+        String sql = """
+                SELECT MONTH(data_vendita) AS mese,
+                       SUM(%s) AS fatturato,
+                       SUM(%s) AS quantita,
+                       COUNT(DISTINCT documento_id) AS documenti
+                FROM vendite_dettaglio
+                WHERE data_vendita BETWEEN ? AND ?
+                GROUP BY MONTH(data_vendita)
+                ORDER BY mese
+                """.formatted(SIGNED_REVENUE, SIGNED_QUANTITY);
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            setDateRange(ps, filter);
+            try (ResultSet rs = ps.executeQuery()) {
+                List<MonthlySales> result = new ArrayList<>();
+                while (rs.next()) {
+                    result.add(new MonthlySales(
+                            rs.getInt("mese"),
+                            rs.getBigDecimal("fatturato"),
+                            rs.getBigDecimal("quantita"),
+                            rs.getInt("documenti")
+                    ));
+                }
+                return List.copyOf(result);
+            }
+        } catch (SQLException e) {
+            throw new RepositoryException("Errore durante il calcolo dell'andamento mensile", e);
+        }
+    }
+
+    @Override
+    public List<SalesRankingItem> loadTopCustomers(SalesFilter filter, int limit) {
+        return loadRanking(
+                "codice_cliente",
+                "codice_cliente",
+                filter,
+                limit
+        );
+    }
+
+    @Override
+    public List<SalesRankingItem> loadTopProducts(SalesFilter filter, int limit) {
+        return loadRanking(
+                "codice_prodotto",
+                "MAX(descrizione_prodotto)",
+                filter,
+                limit
+        );
+    }
+
+    private List<SalesRankingItem> loadRanking(
+            String codeColumn,
+            String descriptionExpression,
+            SalesFilter filter,
+            int limit
+    ) {
+        if (limit < 1) {
+            throw new IllegalArgumentException("Il limite deve essere positivo");
+        }
+        String sql = """
+                SELECT %s AS codice,
+                       %s AS descrizione,
+                       SUM(%s) AS fatturato,
+                       SUM(%s) AS quantita,
+                       COUNT(DISTINCT documento_id) AS documenti
+                FROM vendite_dettaglio
+                WHERE data_vendita BETWEEN ? AND ?
+                GROUP BY %s
+                ORDER BY fatturato DESC
+                FETCH FIRST %d ROWS ONLY
+                """.formatted(
+                codeColumn,
+                descriptionExpression,
+                SIGNED_REVENUE,
+                SIGNED_QUANTITY,
+                codeColumn,
+                limit
+        );
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            setDateRange(ps, filter);
+            try (ResultSet rs = ps.executeQuery()) {
+                List<SalesRankingItem> result = new ArrayList<>();
+                while (rs.next()) {
+                    result.add(new SalesRankingItem(
+                            rs.getString("codice"),
+                            rs.getString("descrizione"),
+                            rs.getBigDecimal("fatturato"),
+                            rs.getBigDecimal("quantita"),
+                            rs.getInt("documenti"),
+                            BigDecimal.ZERO
+                    ));
+                }
+                return List.copyOf(result);
+            }
+        } catch (SQLException e) {
+            throw new RepositoryException("Errore durante il calcolo della classifica vendite", e);
+        }
+    }
+
+    private void setDateRange(PreparedStatement ps, SalesFilter filter) throws SQLException {
+        ps.setDate(1, Date.valueOf(filter.from()));
+        ps.setDate(2, Date.valueOf(filter.to()));
+    }
+}
