@@ -1,0 +1,102 @@
+.dashboard-scroll {
+    -fx-background-color: transparent;
+    -fx-background: #f4f7fb;
+}
+
+.dashboard-filters {
+    -fx-padding: 16px;
+    -fx-background-color: white;
+    -fx-background-radius: 12px;
+    -fx-border-color: #e0e6ef;
+    -fx-border-radius: 12px;
+}
+
+.filter-label {
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #526177;
+}
+
+.dashboard-metric,
+.dashboard-card {
+    -fx-padding: 18px;
+    -fx-background-color: white;
+    -fx-background-radius: 12px;
+    -fx-border-color: #e0e6ef;
+    -fx-border-radius: 12px;
+}
+
+.dashboard-metric-value {
+    -fx-font-size: 22px;
+    -fx-font-weight: 800;
+    -fx-text-fill: #173f5f;
+}
+
+.metric-secondary-label {
+    -fx-padding: 8px 0 0 0;
+    -fx-font-size: 11px;
+    -fx-text-fill: #7b8798;
+}
+
+.metric-secondary-value {
+    -fx-font-size: 14px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #526177;
+}
+
+.metric-comparison {
+    -fx-font-size: 12px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #64748b;
+}
+
+.comparison-positive {
+    -fx-text-fill: #15803d;
+}
+
+.comparison-negative {
+    -fx-text-fill: #b91c1c;
+}
+
+.comparison-neutral {
+    -fx-text-fill: #64748b;
+}
+
+.chart-bar {
+    -fx-bar-fill: #2563eb;
+}
+
+.default-color1.chart-series-line {
+    -fx-stroke: #94a3b8;
+    -fx-stroke-width: 2px;
+    -fx-stroke-dash-array: 8 6;
+}
+
+.default-color1.chart-line-symbol {
+    -fx-background-color: #94a3b8, white;
+}
+
+.dashboard-empty {
+    -fx-padding: 70px 30px;
+    -fx-background-color: white;
+    -fx-background-radius: 14px;
+    -fx-border-color: #dce4ed;
+    -fx-border-radius: 14px;
+}
+
+.chart {
+    -fx-padding: 8px;
+}
+
+.chart-series-line {
+    -fx-stroke: #176b87;
+    -fx-stroke-width: 3px;
+}
+
+.chart-line-symbol {
+    -fx-background-color: #176b87, white;
+}
+
+.axis {
+    -fx-tick-label-fill: #68758a;
+}
