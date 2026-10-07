@@ -1,0 +1,164 @@
+package com.orodent.statistiche.core.database.csv;
+
+import com.orodent.statistiche.core.csv.CsvMappingException;
+import com.orodent.statistiche.core.csv.CsvRow;
+import com.orodent.statistiche.core.csv.CsvRowMapper;
+import com.orodent.statistiche.core.database.model.TipoOperazione;
+import com.orodent.statistiche.core.database.model.VenditaDettaglio;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
+import java.util.Locale;
+import java.util.Set;
+
+public final class VenditaDettaglioCsvMapper implements CsvRowMapper<VenditaDettaglio> {
+
+    public static final String DATA_REGISTRAZIONE = "Data reg.";
+    public static final String NUMERO_DOCUMENTO = "Nr. doc.";
+    public static final String SORGENTE = "MA_InventoryEntries_StoragePhase1";
+    public static final String CAUSALE = "MA_InventoryReasons_Reason";
+    public static final String CODICE_CLIENTE = "MA_InventoryEntries_CustSupp";
+    public static final String CODICE_ARTICOLO = "Articolo";
+    public static final String DESCRIZIONE = "Descrizione";
+    public static final String QUANTITA = "Quantità";
+    public static final String PREZZO_UNITARIO = "Valore unitario";
+    public static final String SCONTO = "Sconto";
+    public static final String IMPORTO_SCONTO = "Imp. sconto";
+    public static final String IMPORTO_RIGA = "Importo riga";
+
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter
+            .ofPattern("dd/MM/uuuu", Locale.ITALY)
+            .withResolverStyle(ResolverStyle.STRICT);
+
+    private static final Set<String> REQUIRED_COLUMNS = Set.of(
+            DATA_REGISTRAZIONE,
+            NUMERO_DOCUMENTO,
+            SORGENTE,
+            CAUSALE,
+            CODICE_CLIENTE,
+            CODICE_ARTICOLO,
+            DESCRIZIONE,
+            QUANTITA,
+            PREZZO_UNITARIO,
+            SCONTO,
+            IMPORTO_SCONTO,
+            IMPORTO_RIGA
+    );
+
+    @Override
+    public VenditaDettaglio map(CsvRow row) {
+        String numeroDocumento = requiredText(row, NUMERO_DOCUMENTO);
+
+        return new VenditaDettaglio(
+                null,
+                requiredText(row, SORGENTE),
+                numeroDocumento,
+                numeroDocumento,
+                row.lineNumber() - 1,
+                parseDate(row, DATA_REGISTRAZIONE),
+                requiredText(row, CODICE_CLIENTE),
+                requiredText(row, CODICE_ARTICOLO),
+                requiredText(row, DESCRIZIONE),
+                null,
+                parseDecimal(row, QUANTITA),
+                parseDecimal(row, PREZZO_UNITARIO),
+                parseDiscount(row, SCONTO),
+                parseDecimal(row, IMPORTO_SCONTO),
+                parseDecimal(row, IMPORTO_RIGA),
+                parseOperation(row, CAUSALE),
+                null,
+                null,
+                null
+        );
+    }
+
+    @Override
+    public Set<String> requiredColumns() {
+        return REQUIRED_COLUMNS;
+    }
+
+    private String requiredText(CsvRow row, String column) {
+        String value = row.requiredValue(column);
+        if (value.isBlank()) {
+            throw mappingError(column, value, "Il valore è obbligatorio");
+        }
+        return value;
+    }
+
+    private LocalDate parseDate(CsvRow row, String column) {
+        String value = requiredText(row, column);
+        try {
+            return LocalDate.parse(value, DATE_FORMAT);
+        } catch (DateTimeParseException exception) {
+            throw new CsvMappingException(
+                    column,
+                    value,
+                    "Data non valida, formato richiesto: gg/mm/aaaa",
+                    exception
+            );
+        }
+    }
+
+    private BigDecimal parseDecimal(CsvRow row, String column) {
+        String value = requiredText(row, column);
+        try {
+            return new BigDecimal(value.replace(',', '.'));
+        } catch (NumberFormatException exception) {
+            throw new CsvMappingException(column, value, "Numero decimale non valido", exception);
+        }
+    }
+
+    private BigDecimal parseDiscount(CsvRow row, String column) {
+        String value = row.requiredValue(column);
+        if (value.isBlank()) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal remainingPercentage = BigDecimal.valueOf(100);
+        for (String component : value.split("\\+", -1)) {
+            BigDecimal percentage = parseDiscountComponent(column, value, component);
+            remainingPercentage = remainingPercentage
+                    .multiply(BigDecimal.valueOf(100).subtract(percentage))
+                    .divide(BigDecimal.valueOf(100));
+        }
+
+        return BigDecimal.valueOf(100)
+                .subtract(remainingPercentage)
+                .setScale(4, RoundingMode.HALF_UP)
+                .stripTrailingZeros();
+    }
+
+    private BigDecimal parseDiscountComponent(String column, String rawValue, String component) {
+        try {
+            BigDecimal percentage = new BigDecimal(component.trim().replace(',', '.'));
+            if (percentage.signum() < 0 || percentage.compareTo(BigDecimal.valueOf(100)) > 0) {
+                throw mappingError(column, rawValue, "Ogni percentuale di sconto deve essere compresa tra 0 e 100");
+            }
+            return percentage;
+        } catch (NumberFormatException exception) {
+            throw new CsvMappingException(column, rawValue, "Espressione di sconto non valida", exception);
+        }
+    }
+
+    private TipoOperazione parseOperation(CsvRow row, String column) {
+        String value = requiredText(row, column).toUpperCase(Locale.ROOT);
+        if (value.equals("VEND") || value.startsWith("VEN-")) {
+            return TipoOperazione.VENDITA;
+        }
+        if (value.equals("RESO") || value.startsWith("RES-")) {
+            return TipoOperazione.RESO;
+        }
+        if (value.equals("NOTA_CREDITO") || value.equals("NOTA CREDITO") || value.startsWith("NC-")) {
+            return TipoOperazione.NOTA_CREDITO;
+        }
+        throw mappingError(column, value, "Causale di vendita non riconosciuta");
+    }
+
+    private CsvMappingException mappingError(String column, String rawValue, String message) {
+        return new CsvMappingException(column, rawValue, message);
+    }
+}
