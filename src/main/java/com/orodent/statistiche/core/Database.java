@@ -1,5 +1,7 @@
 package com.orodent.statistiche.core;
 
+import com.orodent.statistiche.core.database.DatabaseSchema;
+
 import java.net.InetAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -9,7 +11,9 @@ import java.sql.SQLException;
 
 public class Database implements ConnectionProvider {
 
-    private static final String DATABASE_NAME = "TonDatabase";
+    private static final String DATABASE_NAME = "StatisticheDatabase";
+    private static final String DATABASE_HOME_PROPERTY = "ton.database.home";
+    private static final String DATABASE_HOME_ENVIRONMENT = "STATISTICHE_DATABASE_HOME";
     private static final String DATABASE_USER = "APP";
     private static final String DATABASE_PASSWORD = "pw";
     private static final int START_ATTEMPTS = 6;
@@ -53,6 +57,7 @@ public class Database implements ConnectionProvider {
                 // Verify that the embedded database accepts connections before publishing READY.
             }
             state = State.READY;
+            new DatabaseSchema(this).initialize();
         } catch (Exception exception) {
             state = State.FAILED;
             if (exception instanceof InterruptedException) {
@@ -63,23 +68,36 @@ public class Database implements ConnectionProvider {
     }
 
     private void configureDerby() throws Exception {
-        String configuredHome = System.getProperty("ton.database.home");
-        Path databaseHome = configuredHome == null || configuredHome.isBlank()
-                ? defaultDatabaseHome()
-                : Path.of(configuredHome);
+        Path databaseHome = resolveDatabaseHome(
+                System.getProperty(DATABASE_HOME_PROPERTY),
+                System.getenv(DATABASE_HOME_ENVIRONMENT),
+                System.getProperty("os.name", ""),
+                System.getProperty("user.home")
+        );
         Files.createDirectories(databaseHome);
         System.setProperty("derby.system.home", databaseHome.toAbsolutePath().toString());
         System.setProperty("derby.drda.startNetworkServer", "true");
         System.setProperty("derby.drda.host", InetAddress.getLocalHost().getHostAddress());
     }
 
-    private Path defaultDatabaseHome() {
-        String operatingSystem = System.getProperty("os.name", "").toLowerCase();
-        if (operatingSystem.contains("win")) {
+    static Path resolveDatabaseHome(String propertyValue, String environmentValue,
+                                    String operatingSystem, String userHome) {
+        if (propertyValue != null && !propertyValue.isBlank()) {
+            return Path.of(propertyValue);
+        }
+        if (environmentValue != null && !environmentValue.isBlank()) {
+            return Path.of(environmentValue);
+        }
+        return defaultDatabaseHome(operatingSystem, userHome);
+    }
+
+    private static Path defaultDatabaseHome(String operatingSystem, String userHome) {
+        String normalizedOperatingSystem = operatingSystem == null ? "" : operatingSystem.toLowerCase();
+        if (normalizedOperatingSystem.contains("win")) {
             // Preserve the location used by previous releases unless explicitly overridden.
             return Path.of("C:\\");
         }
-        return Path.of(System.getProperty("user.home"), ".ton", "database");
+        return Path.of(userHome, ".ton", "database");
     }
 
     private void waitForStart() throws Exception {
