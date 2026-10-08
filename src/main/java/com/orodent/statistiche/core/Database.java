@@ -1,5 +1,7 @@
 package com.orodent.statistiche.core;
 
+import com.orodent.statistiche.core.database.DatabaseSchema;
+
 import java.net.InetAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -53,6 +55,7 @@ public class Database implements ConnectionProvider {
                 // Verify that the embedded database accepts connections before publishing READY.
             }
             state = State.READY;
+            new DatabaseSchema(this).initialize();
         } catch (Exception exception) {
             state = State.FAILED;
             if (exception instanceof InterruptedException) {
