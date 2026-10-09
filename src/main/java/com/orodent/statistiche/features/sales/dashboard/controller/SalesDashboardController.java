@@ -57,8 +57,7 @@ public final class SalesDashboardController {
             return;
         }
         int firstMonth = switch (preset) {
-            case WHOLE_YEAR -> 1;
-            case FIRST_QUARTER -> 1;
+            case WHOLE_YEAR, FIRST_QUARTER -> 1;
             case SECOND_QUARTER -> 4;
             case THIRD_QUARTER -> 7;
             case FOURTH_QUARTER -> 10;

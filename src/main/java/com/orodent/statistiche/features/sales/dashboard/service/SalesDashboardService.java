@@ -22,19 +22,16 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 
-public final class SalesDashboardService {
+public record SalesDashboardService(ConnectionProvider connectionProvider, Executor executor,
+                                    Function<Connection, SalesStatisticsRepository> repositoryFactory) {
 
     private static final int RANKING_LIMIT = 10;
-
-    private final ConnectionProvider connectionProvider;
-    private final Executor executor;
-    private final Function<Connection, SalesStatisticsRepository> repositoryFactory;
 
     public SalesDashboardService(ConnectionProvider connectionProvider, Executor executor) {
         this(connectionProvider, executor, SalesStatisticsRepositoryImpl::new);
     }
 
-    SalesDashboardService(
+    public SalesDashboardService(
             ConnectionProvider connectionProvider,
             Executor executor,
             Function<Connection, SalesStatisticsRepository> repositoryFactory

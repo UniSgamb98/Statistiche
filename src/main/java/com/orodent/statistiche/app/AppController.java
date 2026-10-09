@@ -112,10 +112,6 @@ public final class AppController implements AppNavigator {
         stage.setTitle("Statistiche - Archivio vendite"); controller.loadInitialData();
     }
 
-    private void showView(Parent root, String... extraCss) {
-        showView(root, () -> { }, extraCss);
-    }
-
     private void showView(Parent root, Runnable cleanup, String... extraCss) {
         runActivePageCleanup();
         activePageCleanup = cleanup;

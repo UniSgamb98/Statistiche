@@ -15,9 +15,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-public final class ClienteRepositoryImpl implements ClienteRepository {
+public record ClienteRepositoryImpl(Connection connection) implements ClienteRepository {
     private static final int BATCH_SIZE = 500;
-    private final Connection connection;
 
     public ClienteRepositoryImpl(Connection connection) {
         this.connection = Objects.requireNonNull(connection, "connection");

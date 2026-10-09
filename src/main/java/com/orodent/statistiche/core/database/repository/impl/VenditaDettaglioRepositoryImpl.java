@@ -20,11 +20,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-public class VenditaDettaglioRepositoryImpl implements VenditaDettaglioRepository {
+public record VenditaDettaglioRepositoryImpl(Connection conn) implements VenditaDettaglioRepository {
 
     private static final int INSERT_BATCH_SIZE = 500;
-
-    private final Connection conn;
 
     public VenditaDettaglioRepositoryImpl(Connection conn) {
         this.conn = Objects.requireNonNull(conn, "conn");
@@ -235,7 +233,8 @@ public class VenditaDettaglioRepositoryImpl implements VenditaDettaglioRepositor
     @Override
     public List<VenditaDettaglio> findAll() {
         String sql = selectColumns() + " ORDER BY vendita_id";
-        return query(sql, ps -> { });
+        return query(sql, ps -> {
+        });
     }
 
     @Override

@@ -106,7 +106,7 @@ public final class CsvReader {
             }
 
             if (current == options.quote()) {
-                if (field.length() > 0 || quoteClosed) {
+                if (!field.isEmpty() || quoteClosed) {
                     throw new CsvParseException(lineNumber, "Virgolette inattese in un campo non delimitato");
                 }
                 quoted = true;
@@ -210,7 +210,7 @@ public final class CsvReader {
             StringBuilder field,
             char delimiter
     ) {
-        return field.length() > 0
+        return !field.isEmpty()
                 || !fields.isEmpty()
                 || (!content.isEmpty() && content.charAt(content.length() - 1) == delimiter);
     }

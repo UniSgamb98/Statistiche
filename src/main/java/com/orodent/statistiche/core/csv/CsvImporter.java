@@ -42,7 +42,7 @@ public final class CsvImporter<T> {
 
     private CsvImportResult<T> importDocument(CsvDocument document) {
         Set<String> missingColumns = new LinkedHashSet<>(mapper.requiredColumns());
-        missingColumns.removeAll(document.headers());
+        document.headers().forEach(missingColumns::remove);
 
         if (!missingColumns.isEmpty()) {
             CsvImportResult.DocumentError error = new CsvImportResult.DocumentError(

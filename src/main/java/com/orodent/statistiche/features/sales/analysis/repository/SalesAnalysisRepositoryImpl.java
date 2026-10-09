@@ -4,7 +4,6 @@ import com.orodent.statistiche.core.database.model.TipoOperazione;
 import com.orodent.statistiche.core.database.repository.RepositoryException;
 import com.orodent.statistiche.features.sales.analysis.model.*;
 
-import java.math.BigDecimal;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
