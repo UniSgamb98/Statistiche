@@ -263,3 +263,15 @@
 .customer-monthly-chart .chart-legend-item {
     -fx-padding: 2px 10px 2px 2px;
 }
+
+.customer-monthly-metric {
+    -fx-pref-width: 135px;
+    -fx-background-color: white;
+    -fx-border-color: #e0e6ef;
+    -fx-border-radius: 6px;
+    -fx-background-radius: 6px;
+}
+
+.customer-monthly-metric:focused {
+    -fx-border-color: #176b87;
+}

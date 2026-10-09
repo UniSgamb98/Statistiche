@@ -1,0 +1,154 @@
+package com.orodent.statistiche.features.sales.customers.view;
+
+import com.orodent.statistiche.features.sales.customers.model.CustomerMonthlyValue;
+import javafx.collections.FXCollections;
+import javafx.geometry.Pos;
+import javafx.geometry.Side;
+import javafx.scene.chart.CategoryAxis;
+import javafx.scene.chart.LineChart;
+import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.XYChart;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.ProgressIndicator;
+import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
+import javafx.util.StringConverter;
+
+import java.math.BigDecimal;
+import java.text.NumberFormat;
+import java.time.Month;
+import java.time.format.TextStyle;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.TreeMap;
+
+/** Owns the monthly chart, its display metric and comparison controls. */
+final class CustomerMonthlyPane extends VBox {
+    private final ComboBox<Integer> comparisonYears = new ComboBox<>();
+    private final ComboBox<Metric> metric = new ComboBox<>();
+    private final NumberAxis valueAxis = new NumberAxis();
+    private final LineChart<String, Number> chart = new LineChart<>(new CategoryAxis(), valueAxis);
+    private final Label error = new Label();
+    private final ProgressIndicator loading = new ProgressIndicator();
+    private final Map<Integer, List<CustomerMonthlyValue>> history = new TreeMap<>(Comparator.reverseOrder());
+
+    CustomerMonthlyPane() {
+        super(8);
+        comparisonYears.setItems(FXCollections.observableArrayList(1, 2, 3, 4, 5));
+        comparisonYears.setValue(1);
+        metric.setItems(FXCollections.observableArrayList(Metric.values()));
+        metric.setValue(Metric.REVENUE);
+        metric.getStyleClass().add("customer-monthly-metric");
+        metric.setAccessibleText("Metrica del grafico mensile");
+        metric.setOnAction(event -> updateMetric());
+        Label metricLabel = new Label("Mostra:");
+        metricLabel.setLabelFor(metric);
+        FlowPane controls = new FlowPane(8, 8, new Label("Mostra l'anno corrente e:"),
+                comparisonYears, new Label("anni precedenti"), loading, metricLabel, metric);
+        controls.setAlignment(Pos.CENTER_LEFT);
+        controls.getStyleClass().add("customer-comparison-bar");
+        loading.setMaxSize(28, 28);
+        error.getStyleClass().add("error-label");
+        error.setWrapText(true);
+        setLoading(false);
+        setErrorVisible(false);
+        CategoryAxis months = (CategoryAxis) chart.getXAxis();
+        months.setAutoRanging(false);
+        months.setCategories(FXCollections.observableArrayList(Arrays.stream(Month.values())
+                .map(month -> month.getDisplayName(TextStyle.SHORT, Locale.ITALY)).toList()));
+        chart.setAnimated(false);
+        chart.setCreateSymbols(true);
+        chart.setLegendVisible(true);
+        chart.setLegendSide(Side.BOTTOM);
+        chart.setMinHeight(260);
+        chart.setPrefHeight(260);
+        chart.getStyleClass().add("customer-monthly-chart");
+        VBox.setVgrow(chart, Priority.ALWAYS);
+        getChildren().addAll(controls, error, chart);
+        updateMetric();
+    }
+
+    int comparisonYears() {
+        return comparisonYears.getValue() == null ? 1 : comparisonYears.getValue();
+    }
+
+    void onComparisonYearsChanged(Runnable handler) {
+        comparisonYears.setOnAction(event -> handler.run());
+    }
+
+    void showLoading() {
+        setErrorVisible(false);
+        setLoading(true);
+    }
+
+    void showHistory(List<CustomerMonthlyValue> values) {
+        history.clear();
+        values.stream().map(CustomerMonthlyValue::year).distinct().forEach(year ->
+                history.put(year, values.stream().filter(value -> value.year() == year)
+                        .sorted(Comparator.comparingInt(CustomerMonthlyValue::month)).toList()));
+        chart.getData().clear();
+        history.forEach((year, months) -> {
+            XYChart.Series<String, Number> series = new XYChart.Series<>();
+            series.setName(Integer.toString(year));
+            months.forEach(value -> series.getData().add(new XYChart.Data<>(
+                    Month.of(value.month()).getDisplayName(TextStyle.SHORT, Locale.ITALY),
+                    metric.getValue().value(value))));
+            chart.getData().add(series);
+        });
+        setErrorVisible(false);
+        setLoading(false);
+    }
+
+    void showError(Throwable failure) {
+        setLoading(false);
+        error.setText(failure == null || failure.getMessage() == null
+                ? "Impossibile aggiornare il confronto mensile." : failure.getMessage());
+        setErrorVisible(true);
+    }
+
+    private void updateMetric() {
+        Metric selected = metric.getValue();
+        valueAxis.setLabel(selected == Metric.REVENUE ? "Fatturato (€)" : "Quantità (unità)");
+        NumberFormat format = selected == Metric.REVENUE
+                ? NumberFormat.getCurrencyInstance(Locale.ITALY)
+                : NumberFormat.getNumberInstance(Locale.ITALY);
+        valueAxis.setTickLabelFormatter(new StringConverter<>() {
+            @Override public String toString(Number value) { return format.format(value); }
+            @Override public Number fromString(String value) { throw new UnsupportedOperationException(); }
+        });
+        // Update values in place to preserve each year's series and color.
+        for (XYChart.Series<String, Number> series : chart.getData()) {
+            List<CustomerMonthlyValue> months = history.get(Integer.parseInt(series.getName()));
+            for (int index = 0; index < months.size(); index++) {
+                series.getData().get(index).setYValue(selected.value(months.get(index)));
+            }
+        }
+    }
+
+    private void setLoading(boolean active) {
+        loading.setVisible(active);
+        loading.setManaged(active);
+        comparisonYears.setDisable(active);
+    }
+
+    private void setErrorVisible(boolean visible) {
+        error.setVisible(visible);
+        error.setManaged(visible);
+    }
+
+    private enum Metric {
+        REVENUE("Fatturato"), QUANTITY("Quantità");
+
+        private final String label;
+        Metric(String label) { this.label = label; }
+        BigDecimal value(CustomerMonthlyValue value) {
+            return this == REVENUE ? value.revenue() : value.quantity();
+        }
+        @Override public String toString() { return label; }
+    }
+}

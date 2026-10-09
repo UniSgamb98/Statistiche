@@ -4,7 +4,6 @@ import com.orodent.statistiche.features.sales.analysis.model.*;
 import com.orodent.statistiche.features.sales.analysis.view.AnalysisView;
 import com.orodent.statistiche.features.sales.customers.model.*;
 import javafx.beans.property.SimpleStringProperty;
-import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Side;
@@ -14,9 +13,7 @@ import javafx.scene.layout.*;
 
 import java.math.BigDecimal;
 import java.text.NumberFormat;
-import java.time.Month;
 import java.time.format.DateTimeFormatter;
-import java.time.format.TextStyle;
 import java.util.*;
 import java.util.function.Consumer;
 
@@ -33,13 +30,10 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
     private final Label detailTitle = new Label("Seleziona un cliente");
     private final Label detailSubtitle = new Label("Clicca una riga per aprire storico, prodotti e frequenza di acquisto.");
     private final CustomerKpiPane detailMetrics = new CustomerKpiPane();
-    private final ComboBox<Integer> comparisonYears = new ComboBox<>();
-    private final LineChart<String, Number> monthlyChart = lineChart(260, "customer-monthly-chart");
+    private final CustomerMonthlyPane monthlyPane = new CustomerMonthlyPane();
     private final StackedBarChart<String, Number> yearlyChart = new StackedBarChart<>(new CategoryAxis(), new NumberAxis());
     private final TableView<CustomerProductItem> products = new TableView<>();
     private final ProgressIndicator detailLoading = new ProgressIndicator();
-    private final Label monthlyError = new Label();
-    private final ProgressIndicator monthlyLoading = new ProgressIndicator();
     private final TabPane detailTabs = new TabPane();
     private final CustomerTrendPane trendPane = new CustomerTrendPane();
     private final Label projectionNote = new Label();
@@ -76,8 +70,6 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
     }
 
     private void configureFilters() {
-        comparisonYears.setItems(FXCollections.observableArrayList(1, 2, 3, 4, 5));
-        comparisonYears.setValue(1);
         search.setPromptText("Codice o ragione sociale");
         search.setPrefWidth(260);
         Label searchLabel = new Label("Cerca cliente");
@@ -103,21 +95,7 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
         detailSubtitle.setWrapText(true);
         detailLoading.setMaxSize(34, 34);
         detailLoading.setVisible(false);
-        monthlyLoading.setMaxSize(28, 28);
-        monthlyLoading.setVisible(false);
-        monthlyLoading.setManaged(false);
-        monthlyError.getStyleClass().add("error-label");
-        monthlyError.setVisible(false);
-        monthlyError.setManaged(false);
-        configureMonthlyAxis();
-
         configureProducts();
-        HBox compare = new HBox(8, new Label("Mostra l'anno corrente e:"), comparisonYears,
-                new Label("anni precedenti"), monthlyLoading);
-        compare.setAlignment(Pos.CENTER_LEFT);
-        compare.getStyleClass().add("customer-comparison-bar");
-        VBox monthlyContent = new VBox(8, compare, monthlyError, monthlyChart);
-        VBox.setVgrow(monthlyChart, Priority.ALWAYS);
 
         yearlyChart.getStyleClass().add("customer-yearly-chart");
         projectionNote.getStyleClass().add("customer-projection-note");
@@ -125,7 +103,7 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
         VBox yearlyContent = new VBox(8, yearlyChart, projectionNote);
         VBox.setVgrow(yearlyChart, Priority.ALWAYS);
         detailTabs.getTabs().setAll(new Tab("Trend recente", trendPane), new Tab("Storico annuale", yearlyContent),
-                new Tab("Andamento mensile", monthlyContent), new Tab("Prodotti", products));
+                new Tab("Andamento mensile", monthlyPane), new Tab("Prodotti", products));
         detailTabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
         detailTabs.setPrefHeight(390);
         detailTabs.getStyleClass().add("customer-detail-tabs");
@@ -140,13 +118,6 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
         detail.getChildren().setAll(detailHeading, detailSubtitle, detailMetrics, detailTabs);
         detailMetrics.setVisible(false);
         detailMetrics.setManaged(false);
-    }
-
-    private void configureMonthlyAxis() {
-        List<String> months = Arrays.stream(Month.values())
-                .map(month -> month.getDisplayName(TextStyle.SHORT, Locale.ITALY))
-                .toList();
-        ((CategoryAxis) monthlyChart.getXAxis()).setCategories(FXCollections.observableArrayList(months));
     }
 
     @Override protected void configureTable(TableView<CustomerAnalysisItem> table) {
@@ -182,8 +153,8 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
     }
 
     public void onCustomerSelected(Consumer<CustomerAnalysisItem> handler) { selected = handler; }
-    public int comparisonYears() { return comparisonYears.getValue() == null ? 1 : comparisonYears.getValue(); }
-    public void onComparisonYearsChanged(Runnable handler) { comparisonYears.setOnAction(event -> handler.run()); }
+    public int comparisonYears() { return monthlyPane.comparisonYears(); }
+    public void onComparisonYearsChanged(Runnable handler) { monthlyPane.onComparisonYearsChanged(handler); }
 
     public void selectCustomerSilently(CustomerAnalysisItem customer) {
         updateSelectionSilently(() -> {
@@ -262,32 +233,11 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
         detailScrollState.restoreAfterLayout();
     }
 
-    public void showMonthlyLoading() {
-        monthlyError.setVisible(false);
-        monthlyError.setManaged(false);
-        monthlyLoading.setVisible(true);
-        monthlyLoading.setManaged(true);
-        comparisonYears.setDisable(true);
-    }
+    public void showMonthlyLoading() { monthlyPane.showLoading(); }
 
-    public void showMonthlyHistory(List<CustomerMonthlyValue> values) {
-        updateMonthly(values);
-        monthlyError.setVisible(false);
-        monthlyError.setManaged(false);
-        monthlyLoading.setVisible(false);
-        monthlyLoading.setManaged(false);
-        comparisonYears.setDisable(false);
-    }
+    public void showMonthlyHistory(List<CustomerMonthlyValue> values) { monthlyPane.showHistory(values); }
 
-    public void showMonthlyError(Throwable error) {
-        monthlyLoading.setVisible(false);
-        monthlyLoading.setManaged(false);
-        comparisonYears.setDisable(false);
-        monthlyError.setText(error == null || error.getMessage() == null
-                ? "Impossibile aggiornare il confronto mensile." : error.getMessage());
-        monthlyError.setVisible(true);
-        monthlyError.setManaged(true);
-    }
+    public void showMonthlyError(Throwable error) { monthlyPane.showError(error); }
 
     public void showDetailError(Throwable error) {
         detailScrollState.restoreAfterLayout();
@@ -333,18 +283,6 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
                 + " · Affidabilità " + projection.confidence().label().toLowerCase(Locale.ITALY)
                 + " · Dati disponibili dal " + projection.dataFrom().format(format)
                 + " al " + projection.dataThrough().format(format));
-    }
-
-    private void updateMonthly(List<CustomerMonthlyValue> values) {
-        Map<Integer, XYChart.Series<String, Number>> series = new TreeMap<>(Comparator.reverseOrder());
-        values.forEach(value -> {
-            XYChart.Series<String, Number> year = series.computeIfAbsent(value.year(), key -> {
-                XYChart.Series<String, Number> created = new XYChart.Series<>(); created.setName(Integer.toString(key)); return created;
-            });
-            String month = Month.of(value.month()).getDisplayName(TextStyle.SHORT, Locale.ITALY);
-            year.getData().add(new XYChart.Data<>(month, value.revenue()));
-        });
-        monthlyChart.getData().setAll(series.values());
     }
 
     private void configureProducts() {
