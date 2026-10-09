@@ -9,5 +9,7 @@ public record CustomerTrendSummary(
         BigDecimal orderChangePercentage,
         BigDecimal recentRevenue,
         BigDecimal revenueChangePercentage,
+        BigDecimal recentQuantity,
+        BigDecimal quantityChangePercentage,
         String explanation
 ) { }

@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class CustomerTrendCalculatorTest {
     private final CustomerTrendCalculator calculator = new CustomerTrendCalculator();
@@ -38,6 +39,33 @@ class CustomerTrendCalculatorTest {
         CustomerTrendData result = calculator.calculate(List.of(value(2026, 1, 4), value(2026, 2, 5)));
 
         assertEquals(CustomerTrendStatus.INSUFFICIENT_DATA, result.summary().status());
+    }
+
+    @Test
+    void comparesTotalQuantityIndependentlyOfOrdersAndRevenue() {
+        List<CustomerMonthlyValue> months = new ArrayList<>();
+        for (int index = 0; index < 24; index++) {
+            months.add(new CustomerMonthlyValue(2025 + index / 12, index % 12 + 1,
+                    BigDecimal.valueOf(index < 12 ? 100 : 80),
+                    BigDecimal.valueOf(index < 12 ? 10 : 15), 5));
+        }
+        CustomerTrendData result = calculator.calculate(months);
+        assertEquals(CustomerTrendStatus.STABLE, result.summary().status());
+        assertEquals(new BigDecimal("180"), result.summary().recentQuantity());
+        assertEquals(new BigDecimal("50.0"), result.summary().quantityChangePercentage());
+        assertEquals(new BigDecimal("-20.0"), result.summary().revenueChangePercentage());
+        assertEquals("Il cliente ordina regolarmente e acquista più unità, ma il fatturato cala: il valore medio per unità si riduce.",
+                result.summary().explanation());
+    }
+
+    @Test
+    void leavesQuantityUnavailableWhenPreviousQuantityIsZero() {
+        List<CustomerMonthlyValue> months = new ArrayList<>();
+        for (int index = 0; index < 24; index++) {
+            months.add(new CustomerMonthlyValue(2025 + index / 12, index % 12 + 1,
+                    BigDecimal.valueOf(100), BigDecimal.valueOf(index < 12 ? 0 : 10), 5));
+        }
+        assertNull(calculator.calculate(months).summary().quantityChangePercentage());
     }
 
     private CustomerMonthlyValue value(int year, int month, int orders) {

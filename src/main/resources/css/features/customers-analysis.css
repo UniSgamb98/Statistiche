@@ -87,15 +87,15 @@
 .trend-status-declining { -fx-background-color: #fee2e2; -fx-text-fill: #991b1b; }
 .trend-status-insufficient-data { -fx-background-color: #e2e8f0; -fx-text-fill: #475569; }
 
-.customer-revenue-direction {
+.customer-trend-direction {
     -fx-font-size: 13px;
     -fx-font-weight: 800;
     -fx-padding: 5px 8px;
 }
 
-.revenue-growing { -fx-text-fill: #15803d; }
-.revenue-stable { -fx-text-fill: #64748b; }
-.revenue-declining { -fx-text-fill: #b91c1c; }
+.metric-growing { -fx-text-fill: #15803d; }
+.metric-stable { -fx-text-fill: #64748b; }
+.metric-declining { -fx-text-fill: #b91c1c; }
 
 .customer-trend-indicator {
     -fx-padding: 10px 12px;

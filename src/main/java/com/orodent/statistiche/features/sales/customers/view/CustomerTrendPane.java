@@ -8,6 +8,7 @@ import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
@@ -25,6 +26,7 @@ final class CustomerTrendPane extends VBox {
     private final Label orders = new Label();
     private final Label revenue = new Label();
     private final Label revenueDirection = new Label();
+    private final Label quantityDirection = new Label();
     private final LineChart<String, Number> chart = new LineChart<>(new CategoryAxis(), new NumberAxis());
 
     CustomerTrendPane() {
@@ -46,9 +48,10 @@ final class CustomerTrendPane extends VBox {
                 legendItem("Media mobile 3 mesi", "moving-average"));
         legend.setAlignment(Pos.CENTER_LEFT);
         legend.getStyleClass().add("customer-trend-legend");
-        HBox heading = new HBox(10, status, revenueDirection);
+        FlowPane heading = new FlowPane(10, 6, status, revenueDirection, quantityDirection);
         heading.setAlignment(Pos.CENTER_LEFT);
-        revenueDirection.getStyleClass().add("customer-revenue-direction");
+        revenueDirection.getStyleClass().add("customer-trend-direction");
+        quantityDirection.getStyleClass().add("customer-trend-direction");
         getChildren().addAll(heading, explanation, indicators, legend, chart);
     }
 
@@ -57,7 +60,8 @@ final class CustomerTrendPane extends VBox {
         status.setText(summary.status().label());
         status.getStyleClass().removeIf(style -> style.startsWith("trend-status-"));
         status.getStyleClass().add("trend-status-" + summary.status().name().toLowerCase(Locale.ROOT).replace('_', '-'));
-        updateRevenueDirection(summary.revenueChangePercentage());
+        updateDirection(revenueDirection, "fatturato", summary.revenueChangePercentage());
+        updateDirection(quantityDirection, "quantità", summary.quantityChangePercentage());
         explanation.setText(summary.explanation());
         orders.setText(summary.recentOrders() + comparison(summary.orderChangePercentage()));
         revenue.setText(currency.format(summary.recentRevenue()) + comparison(summary.revenueChangePercentage()));
@@ -75,21 +79,27 @@ final class CustomerTrendPane extends VBox {
         chart.getData().setAll(actual, average);
     }
 
-    private void updateRevenueDirection(BigDecimal percentage) {
-        revenueDirection.getStyleClass().removeAll("revenue-growing", "revenue-stable", "revenue-declining");
-        if (percentage == null) {
-            revenueDirection.setText("→ fatturato non confrontabile");
-            revenueDirection.getStyleClass().add("revenue-stable");
-        } else if (percentage.compareTo(BigDecimal.valueOf(3)) >= 0) {
-            revenueDirection.setText("↗ +" + percentage.stripTrailingZeros().toPlainString() + "% fatturato");
-            revenueDirection.getStyleClass().add("revenue-growing");
-        } else if (percentage.compareTo(BigDecimal.valueOf(-3)) <= 0) {
-            revenueDirection.setText("↘ " + percentage.stripTrailingZeros().toPlainString() + "% fatturato");
-            revenueDirection.getStyleClass().add("revenue-declining");
-        } else {
-            revenueDirection.setText("→ " + percentage.stripTrailingZeros().toPlainString() + "% fatturato");
-            revenueDirection.getStyleClass().add("revenue-stable");
+    private void updateDirection(Label label, String metric, BigDecimal percentage) {
+        label.getStyleClass().removeAll("metric-growing", "metric-stable", "metric-declining");
+        CustomerTrendDirection direction = CustomerTrendDirection.forValue(percentage);
+        if (direction == CustomerTrendDirection.UNAVAILABLE) {
+            label.setText("→ " + metric + " non confrontabile");
+            label.getStyleClass().add("metric-stable");
+            return;
         }
+        String arrow = switch (direction) {
+            case UP -> "↗ ";
+            case DOWN -> "↘ ";
+            default -> "→ ";
+        };
+        String style = switch (direction) {
+            case UP -> "metric-growing";
+            case DOWN -> "metric-declining";
+            default -> "metric-stable";
+        };
+        String sign = percentage.signum() > 0 ? "+" : "";
+        label.setText(arrow + sign + percentage.stripTrailingZeros().toPlainString() + "% " + metric);
+        label.getStyleClass().add(style);
     }
 
     private VBox indicator(String title, Label value) {

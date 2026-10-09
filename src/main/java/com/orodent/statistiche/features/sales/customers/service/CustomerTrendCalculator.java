@@ -26,9 +26,13 @@ public final class CustomerTrendCalculator {
         BigDecimal previousRevenue = sumRevenue(previous);
         BigDecimal orderChange = percentage(recentOrders, previousOrders);
         BigDecimal revenueChange = percentage(recentRevenue, previousRevenue);
+        BigDecimal recentQuantity = sumQuantity(recent);
+        BigDecimal quantityChange = percentage(recentQuantity, sumQuantity(previous));
         CustomerTrendStatus status = status(orderChange, previous.size());
         CustomerTrendSummary summary = new CustomerTrendSummary(status, recentOrders, previousOrders,
-                orderChange, recentRevenue, revenueChange, narrative.describe(orderChange, revenueChange));
+                orderChange, recentRevenue, revenueChange, recentQuantity, quantityChange,
+                narrative.describe(previous.size() < WINDOW_MONTHS ? null : orderChange,
+                        revenueChange, quantityChange));
         return new CustomerTrendData(summary, points(values));
     }
 
@@ -51,6 +55,10 @@ public final class CustomerTrendCalculator {
         return values.subList(Math.max(0, values.size() - size), values.size());
     }
 
+    private BigDecimal sumQuantity(List<CustomerMonthlyValue> values) {
+        return values.stream().map(CustomerMonthlyValue::quantity).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
     private BigDecimal sumRevenue(List<CustomerMonthlyValue> values) {
         return values.stream().map(CustomerMonthlyValue::revenue).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
@@ -67,9 +75,9 @@ public final class CustomerTrendCalculator {
 
     private CustomerTrendStatus status(BigDecimal change, int previousMonths) {
         if (change == null || previousMonths < WINDOW_MONTHS) return CustomerTrendStatus.INSUFFICIENT_DATA;
-        if (change.compareTo(BigDecimal.TEN) >= 0) return CustomerTrendStatus.GROWING;
+        if (CustomerTrendDirection.forOrders(change) == CustomerTrendDirection.UP) return CustomerTrendStatus.GROWING;
         if (change.compareTo(BigDecimal.valueOf(-20)) <= 0) return CustomerTrendStatus.DECLINING;
-        if (change.compareTo(BigDecimal.valueOf(-10)) <= 0) return CustomerTrendStatus.SLOWING;
+        if (CustomerTrendDirection.forOrders(change) == CustomerTrendDirection.DOWN) return CustomerTrendStatus.SLOWING;
         return CustomerTrendStatus.STABLE;
     }
 
