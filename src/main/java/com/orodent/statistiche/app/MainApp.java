@@ -3,6 +3,7 @@ package com.orodent.statistiche.app;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.scene.Scene;
+import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
 import java.util.Objects;
@@ -15,6 +16,12 @@ public final class MainApp extends Application {
 
     @Override
     public void start(Stage stage) {
+        for (int size : new int[]{16, 32, 48, 64, 128, 256, 512}) {
+            String icon = "/icons/statistiche-" + size + ".png";
+            stage.getIcons().add(new Image(
+                    Objects.requireNonNull(getClass().getResource(icon)).toExternalForm()
+            ));
+        }
         appContainer = new AppContainer();
         StartupView startupView = new StartupView();
         Scene startupScene = new Scene(startupView, 960, 680);
