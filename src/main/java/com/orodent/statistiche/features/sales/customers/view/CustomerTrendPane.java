@@ -35,6 +35,9 @@ final class CustomerTrendPane extends VBox {
         status.getStyleClass().add("customer-trend-status");
         explanation.getStyleClass().add("muted-label");
         explanation.setWrapText(true);
+        explanation.setMinWidth(0);
+        explanation.setMaxWidth(Double.MAX_VALUE);
+        explanation.setMinHeight(Region.USE_PREF_SIZE);
         HBox indicators = new HBox(10, indicator("Ordini ultimi 12 mesi", orders),
                 indicator("Fatturato ultimi 12 mesi", revenue));
         indicators.setAlignment(Pos.CENTER_LEFT);
