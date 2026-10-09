@@ -9,7 +9,6 @@ import com.orodent.statistiche.features.sales.customers.model.*;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.geometry.Side;
 import javafx.scene.chart.*;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
@@ -23,14 +22,12 @@ import java.util.function.Consumer;
 public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
     private final NumberFormat currency = NumberFormat.getCurrencyInstance(Locale.ITALY);
     private final NumberFormat number = NumberFormat.getNumberInstance(Locale.ITALY);
-    private final LineChart<String, Number> topChart = lineChart(260, "top-customers-chart");
     private final TextField search = new TextField();
     private final VBox detail = new VBox(14);
     private final ScrollPane detailScroll = new ScrollPane(detail);
     private final CustomerDetailScrollState detailScrollState = new CustomerDetailScrollState(detailScroll);
     private String detailCustomerCode;
     private boolean detailAvailable;
-    private final List<ChartPointTooltip<String, Number>> topTooltips = new ArrayList<>();
     private final List<ChartPointTooltip<String, Number>> yearlyTooltips = new ArrayList<>();
     private final Label detailTitle = new Label("Seleziona un cliente");
     private final Label detailSubtitle = new Label("Clicca una riga per aprire storico, prodotti e frequenza di acquisto.");
@@ -49,7 +46,6 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
     public CustomersView() {
         super("Analisi clienti", "Fatturato, comportamento d'acquisto e storico per cliente");
         configureFilters();
-        TitledPane topPane = configureTopCustomers();
         configureDetail();
 
         table.getSelectionModel().selectedItemProperty().addListener((obs, old, value) -> {
@@ -64,8 +60,7 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
         split.setPrefHeight(620);
         VBox.setVgrow(split, Priority.ALWAYS);
         content().getChildren().remove(table);
-        content().getChildren().add(2, topPane);
-        content().getChildren().add(3, split);
+        content().getChildren().add(2, split);
         setCenter(null);
         ScrollPane pageScroll = new ScrollPane(content());
         pageScroll.setFitToWidth(true);
@@ -81,15 +76,6 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
         searchLabel.getStyleClass().add("filter-label");
         filterBar.getChildren().add(1, new VBox(5, searchLabel, search));
         search.textProperty().addListener((obs, old, value) -> filterCustomers(value));
-    }
-
-    private TitledPane configureTopCustomers() {
-        TitledPane pane = new TitledPane("Top 5 clienti — evoluzione storica", topChart);
-        pane.setExpanded(false);
-        pane.setAnimated(false);
-        pane.expandedProperty().addListener((obs, old, expanded) ->
-                pane.setPrefHeight(expanded ? 330 : Region.USE_COMPUTED_SIZE));
-        return pane;
     }
 
     private void configureDetail() {
@@ -138,21 +124,6 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
         showData(overview.customers());
         allCustomers = overview.customers().items();
         filterCustomers(search.getText());
-        topTooltips.forEach(ChartPointTooltip::close);
-        topTooltips.clear();
-        Map<String, XYChart.Series<String, Number>> series = new LinkedHashMap<>();
-        for (TopCustomerHistory value : overview.topHistory()) {
-            XYChart.Series<String, Number> customer = series.computeIfAbsent(value.customerCode(), code -> {
-                XYChart.Series<String, Number> created = new XYChart.Series<>();
-                created.setName(value.customerName()); return created;
-            });
-            XYChart.Data<String, Number> point = new XYChart.Data<>(Integer.toString(value.year()), value.revenue());
-            topTooltips.add(new ChartPointTooltip<>(point,
-                    () -> value.customerName() + " · " + value.customerCode() + "\n" + point.getXValue()
-                            + "\nFatturato: " + currency.format(point.getYValue())));
-            customer.getData().add(point);
-        }
-        topChart.getData().setAll(series.values());
     }
 
     private void filterCustomers(String text) {
@@ -319,18 +290,6 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
         List<String> parts = new ArrayList<>();
         if (value.country()!=null) parts.add(value.country()); if(value.customerType()!=null)parts.add(value.customerType());
         if(value.agent()!=null)parts.add("Agente " + value.agent()); return parts.isEmpty()?"":" · "+String.join(" · ",parts);
-    }
-
-    private static LineChart<String, Number> lineChart(double height, String styleClass) {
-        LineChart<String, Number> chart = new LineChart<>(new CategoryAxis(), new NumberAxis());
-        chart.setAnimated(false);
-        chart.setCreateSymbols(true);
-        chart.setLegendVisible(true);
-        chart.setLegendSide(Side.BOTTOM);
-        chart.setMinHeight(height);
-        chart.setPrefHeight(height);
-        chart.getStyleClass().add(styleClass);
-        return chart;
     }
 
     private TableColumn<CustomerAnalysisItem, String> column(String title, java.util.function.Function<CustomerAnalysisItem, String> value) {

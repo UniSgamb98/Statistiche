@@ -12,7 +12,8 @@ public record SalesDashboardData(
         List<MonthlySales> monthlySales,
         List<MonthlySales> previousMonthlySales,
         List<SalesRankingItem> topCustomers,
-        List<SalesRankingItem> topProducts
+        List<SalesRankingItem> topProducts,
+        List<TopCustomerHistory> topCustomerHistory
 ) {
     public SalesDashboardData {
         availableYears = List.copyOf(availableYears);
@@ -21,6 +22,7 @@ public record SalesDashboardData(
         previousMonthlySales = List.copyOf(previousMonthlySales);
         topCustomers = List.copyOf(topCustomers);
         topProducts = List.copyOf(topProducts);
+        topCustomerHistory = List.copyOf(topCustomerHistory);
     }
 
     public boolean empty() {

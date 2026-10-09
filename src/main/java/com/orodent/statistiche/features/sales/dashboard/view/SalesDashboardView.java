@@ -63,6 +63,7 @@ public final class SalesDashboardView extends BorderPane {
     private final Label quantityChange = comparisonValue();
     private final Label customersChange = comparisonValue();
     private final Label documentsChange = comparisonValue();
+    private final TopCustomersHistoryPane topCustomersHistoryPane = new TopCustomersHistoryPane();
     private final AnnualSalesComparisonPane annualComparisonPane = new AnnualSalesComparisonPane();
     private final TableView<AnnualSalesComparison> annualTable = createAnnualTable();
     private final ComboBox<ChartMetric> chartMetricBox = new ComboBox<>();
@@ -169,6 +170,7 @@ public final class SalesDashboardView extends BorderPane {
                 BigDecimal.valueOf(data.previousSummary().documents()),
                 data.selectedYear()
         );
+        topCustomersHistoryPane.show(data.selectedYear(), data.topCustomerHistory());
         updateAnnualComparison(data);
         updateChart(data);
         customersTable.getItems().setAll(data.topCustomers());
@@ -291,7 +293,8 @@ public final class SalesDashboardView extends BorderPane {
                 new javafx.scene.layout.ColumnConstraints(0, 520, Double.MAX_VALUE, Priority.ALWAYS, null, true)
         );
 
-        dashboard.getChildren().addAll(metrics, history, chartCard, rankings);
+        dashboard.getChildren().addAll(metrics, history, chartCard,
+                card("Top 5 clienti — evoluzione storica", topCustomersHistoryPane), rankings);
     }
 
     private VBox metricCard(String title, Label value) {

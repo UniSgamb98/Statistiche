@@ -30,6 +30,16 @@ class SalesAnalysisServiceTest {
     }
 
     @Test
+    void loadsCustomerOverviewWithoutTheHistoryRepository() {
+        FakeRepository repository = new FakeRepository();
+        SalesAnalysisService service = new SalesAnalysisService(connectionProvider(), Runnable::run,
+                c -> repository, c -> { throw new AssertionError("Unneeded history repository"); });
+        CustomerOverviewData result = service.loadCustomerOverview(2025).join();
+        assertEquals(2025, result.customers().selectedYear());
+        assertEquals("Cliente Uno", result.customers().items().getFirst().name());
+    }
+
+    @Test
     void passesSearchTextToArchiveRepository() {
         FakeRepository repository = new FakeRepository();
         SalesAnalysisService service = new SalesAnalysisService(connectionProvider(), Runnable::run, c -> repository);
@@ -129,7 +139,6 @@ class SalesAnalysisServiceTest {
             return List.of();
         }
         public List<CustomerProductItem> loadProducts(String code, int year) { return List.of(); }
-        public List<TopCustomerHistory> loadTopCustomerHistory(int selectedYear, int limit) { return List.of(); }
         public SalesDataCoverage loadDataCoverage() {
             return new SalesDataCoverage(java.time.LocalDate.of(2020, 1, 1), java.time.LocalDate.of(2025, 12, 31));
         }

@@ -80,21 +80,6 @@ public final class CustomerAnalysisRepositoryImpl implements CustomerAnalysisRep
         }catch(SQLException e){throw failure(e);}
     }
 
-    @Override public List<TopCustomerHistory> loadTopCustomerHistory(int selectedYear,int limit){
-        String sql="""
-                SELECT v.codice_cliente,COALESCE(MAX(c.ragione_sociale),v.codice_cliente) nome,
-                       YEAR(v.data_vendita) anno,SUM(v.importo_netto) fatturato
-                FROM vendite_dettaglio v LEFT JOIN clienti c ON c.codice_cliente=v.codice_cliente
-                WHERE v.tipo_operazione='VENDITA' AND v.codice_cliente IN (
-                    SELECT codice_cliente FROM vendite_dettaglio WHERE YEAR(data_vendita)=? AND tipo_operazione='VENDITA'
-                    GROUP BY codice_cliente ORDER BY SUM(importo_netto) DESC FETCH FIRST %d ROWS ONLY)
-                GROUP BY v.codice_cliente,YEAR(v.data_vendita) ORDER BY anno,v.codice_cliente
-                """.formatted(limit);
-        try(PreparedStatement ps=connection.prepareStatement(sql)){ps.setInt(1,selectedYear);
-            try(ResultSet rs=ps.executeQuery()){List<TopCustomerHistory> out=new ArrayList<>();while(rs.next())out.add(new TopCustomerHistory(rs.getString("codice_cliente"),rs.getString("nome"),rs.getInt("anno"),rs.getBigDecimal("fatturato")));return List.copyOf(out);}
-        }catch(SQLException e){throw failure(e);}
-    }
-
     @Override public SalesDataCoverage loadDataCoverage() {
         String sql = "SELECT MIN(data_vendita), MAX(data_vendita) FROM vendite_dettaglio "
                 + "WHERE tipo_operazione='VENDITA'";

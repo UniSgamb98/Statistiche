@@ -15,6 +15,7 @@ import java.sql.Connection;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import com.orodent.statistiche.features.sales.dashboard.model.TopCustomerHistory;
 import java.time.Year;
 import java.util.Map;
 import com.orodent.statistiche.features.sales.projection.model.*;
@@ -130,6 +131,16 @@ class SalesDashboardServiceTest {
         assertNull(service.load(year, null, null).join().annualComparisons().getLast().projection());
     }
 
+    @Test
+    void loadsFiveAnnualLeadersRegardlessOfMonthlyFilter() {
+        FakeRepository repository = new FakeRepository();
+        SalesDashboardService service = new SalesDashboardService(connectionProvider(), Runnable::run, connection -> repository);
+        SalesDashboardData result = service.load(2025, LocalDate.of(2025, 3, 1), LocalDate.of(2025, 3, 31)).join();
+        assertEquals(2025, repository.historyYear);
+        assertEquals(5, repository.historyLimit);
+        assertEquals("C1", result.topCustomerHistory().getFirst().customerCode());
+    }
+
     private FakeRepository projectionRepository(int year) {
         FakeRepository repository = new FakeRepository();
         repository.years = List.of(year, year - 1, year - 2);
@@ -171,9 +182,18 @@ class SalesDashboardServiceTest {
                 new BigDecimal("100")
         );
         private SalesFilter summaryFilter;
+        private int historyYear;
+        private int historyLimit;
         private Optional<SalesDataCoverage> coverage = Optional.empty();
         private List<DailyRevenueValue> history = List.of();
         private Map<Integer, SalesSummary> annualSummaries = Map.of();
+
+        @Override
+        public List<TopCustomerHistory> loadTopCustomerHistory(int selectedYear, int limit) {
+            historyYear = selectedYear;
+            historyLimit = limit;
+            return List.of(new TopCustomerHistory("C1", "Cliente", selectedYear, new BigDecimal("250")));
+        }
 
         @Override
         public Optional<SalesDataCoverage> loadDataCoverage(int year) {

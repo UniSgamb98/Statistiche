@@ -64,20 +64,7 @@ public final class SalesAnalysisService {
     }
 
     public CompletableFuture<CustomerOverviewData> loadCustomerOverview(Integer year) {
-        return CompletableFuture.supplyAsync(() -> connectionProvider.withConnection(connection -> {
-            SalesAnalysisRepository repository = repositoryFactory.apply(connection);
-            List<Integer> years = repository.findAvailableYears();
-            int selected = selectYear(year, years);
-            List<CustomerAnalysisItem> items = repository.loadCustomers(selected);
-            AnalysisSummary summary = new AnalysisSummary(
-                    items.stream().map(CustomerAnalysisItem::revenue).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add),
-                    items.stream().map(CustomerAnalysisItem::quantity).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add),
-                    java.math.BigDecimal.ZERO, items.size());
-            AnalysisPageData<CustomerAnalysisItem> page = new AnalysisPageData<>(years, selected, summary, items);
-            List<TopCustomerHistory> top = customerRepositoryFactory.apply(connection)
-                    .loadTopCustomerHistory(selected, 5);
-            return new CustomerOverviewData(page, top);
-        }), executor);
+        return loadCustomers(year).thenApply(CustomerOverviewData::new);
     }
 
     public CompletableFuture<CustomerDetailData> loadCustomerDetail(

@@ -29,6 +29,7 @@ public record SalesDashboardService(ConnectionProvider connectionProvider, Execu
                                     Function<Connection, SalesStatisticsRepository> repositoryFactory) {
 
     private static final int RANKING_LIMIT = 10;
+    private static final int HISTORY_CUSTOMER_LIMIT = 5;
 
     public SalesDashboardService(ConnectionProvider connectionProvider, Executor executor) {
         this(connectionProvider, executor, SalesStatisticsRepositoryImpl::new);
@@ -80,7 +81,8 @@ public record SalesDashboardService(ConnectionProvider connectionProvider, Execu
                     repository.loadMonthlySales(filter),
                     previousMonthly,
                     customers,
-                    products
+                    products,
+                    repository.loadTopCustomerHistory(selectedYear, HISTORY_CUSTOMER_LIMIT)
             );
         });
     }

@@ -12,7 +12,6 @@ public interface CustomerAnalysisRepository {
     List<CustomerYearSummary> loadYearlyHistory(String customerCode);
     List<CustomerMonthlyValue> loadMonthlyHistory(String customerCode, int fromYear, int toYear);
     List<CustomerProductItem> loadProducts(String customerCode, int year);
-    List<TopCustomerHistory> loadTopCustomerHistory(int selectedYear, int limit);
     SalesDataCoverage loadDataCoverage();
     List<DailyRevenueValue> loadDailyRevenueHistory(String customerCode, int fromYear, int toYear);
 }

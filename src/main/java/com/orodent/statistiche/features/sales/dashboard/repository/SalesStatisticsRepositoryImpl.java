@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import com.orodent.statistiche.features.sales.dashboard.model.TopCustomerHistory;
 import com.orodent.statistiche.features.sales.projection.model.DailyRevenueValue;
 import com.orodent.statistiche.features.sales.projection.model.SalesDataCoverage;
 
@@ -56,6 +57,32 @@ public final class SalesStatisticsRepositoryImpl implements SalesStatisticsRepos
             return List.copyOf(years);
         } catch (SQLException e) {
             throw new RepositoryException("Errore durante la lettura degli anni disponibili", e);
+        }
+    }
+
+    @Override
+    public List<TopCustomerHistory> loadTopCustomerHistory(int selectedYear, int limit) {
+        if (limit < 1) throw new IllegalArgumentException("Il limite deve essere positivo");
+        String sql = """
+                SELECT v.codice_cliente, COALESCE(MAX(c.ragione_sociale),v.codice_cliente) AS nome,
+                       YEAR(v.data_vendita) AS anno, SUM(%s) AS fatturato
+                FROM vendite_dettaglio v LEFT JOIN clienti c ON c.codice_cliente=v.codice_cliente
+                WHERE v.codice_cliente IN (
+                    SELECT codice_cliente FROM vendite_dettaglio WHERE YEAR(data_vendita)=?
+                    GROUP BY codice_cliente ORDER BY SUM(%s) DESC, codice_cliente
+                    FETCH FIRST %d ROWS ONLY)
+                GROUP BY v.codice_cliente,YEAR(v.data_vendita) ORDER BY anno,v.codice_cliente
+                """.formatted(SIGNED_REVENUE, SIGNED_REVENUE, limit);
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, selectedYear);
+            try (ResultSet rs = ps.executeQuery()) {
+                List<TopCustomerHistory> values = new ArrayList<>();
+                while (rs.next()) values.add(new TopCustomerHistory(rs.getString("codice_cliente"),
+                        rs.getString("nome"), rs.getInt("anno"), rs.getBigDecimal("fatturato")));
+                return List.copyOf(values);
+            }
+        } catch (SQLException e) {
+            throw new RepositoryException("Errore durante la lettura dello storico dei migliori clienti", e);
         }
     }
 

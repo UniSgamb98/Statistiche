@@ -224,18 +224,6 @@
     -fx-border-color: #e0e6ef;
 }
 
-.top-customers-chart .default-color0.chart-series-line { -fx-stroke: #176b87; }
-.top-customers-chart .default-color1.chart-series-line { -fx-stroke: #e76f51; -fx-stroke-dash-array: none; }
-.top-customers-chart .default-color2.chart-series-line { -fx-stroke: #2a9d8f; }
-.top-customers-chart .default-color3.chart-series-line { -fx-stroke: #8b5cf6; }
-.top-customers-chart .default-color4.chart-series-line { -fx-stroke: #e9a23b; }
-
-.top-customers-chart .default-color0.chart-line-symbol { -fx-background-color: #176b87, white; }
-.top-customers-chart .default-color1.chart-line-symbol { -fx-background-color: #e76f51, white; }
-.top-customers-chart .default-color2.chart-line-symbol { -fx-background-color: #2a9d8f, white; }
-.top-customers-chart .default-color3.chart-line-symbol { -fx-background-color: #8b5cf6, white; }
-.top-customers-chart .default-color4.chart-line-symbol { -fx-background-color: #e9a23b, white; }
-
 .customer-monthly-chart .default-color0.chart-series-line {
     -fx-stroke: #176b87;
     -fx-stroke-width: 3px;
@@ -254,12 +242,10 @@
 .customer-monthly-chart .default-color4.chart-line-symbol { -fx-background-color: #8b5cf6, white; }
 .customer-monthly-chart .default-color5.chart-line-symbol { -fx-background-color: #e76f51, white; }
 
-.top-customers-chart .chart-legend,
 .customer-monthly-chart .chart-legend {
     -fx-padding: 10px 6px 4px 6px;
 }
 
-.top-customers-chart .chart-legend-item,
 .customer-monthly-chart .chart-legend-item {
     -fx-padding: 2px 10px 2px 2px;
 }
