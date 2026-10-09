@@ -1,6 +1,7 @@
 package com.orodent.statistiche.features.sales.dashboard.view;
 
 import com.orodent.statistiche.core.components.AppHeader;
+import com.orodent.statistiche.core.components.ChartPointTooltip;
 import com.orodent.statistiche.features.sales.dashboard.model.MonthlySales;
 import com.orodent.statistiche.features.sales.dashboard.model.AnnualSalesComparison;
 import com.orodent.statistiche.features.sales.dashboard.model.SalesDashboardData;
@@ -22,7 +23,6 @@ import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
-import javafx.scene.control.Tooltip;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
@@ -35,6 +35,8 @@ import java.text.NumberFormat;
 import java.time.Month;
 import java.time.format.TextStyle;
 import java.util.Locale;
+import java.util.List;
+import java.util.ArrayList;
 
 public final class SalesDashboardView extends BorderPane {
 
@@ -70,6 +72,8 @@ public final class SalesDashboardView extends BorderPane {
     private final TableView<SalesRankingItem> productsTable = createRankingTable(true);
     private final NumberFormat currency = NumberFormat.getCurrencyInstance(Locale.ITALY);
     private final NumberFormat number = NumberFormat.getNumberInstance(Locale.ITALY);
+    private final List<ChartPointTooltip<String, Number>> monthlyTooltips = new ArrayList<>();
+    private final List<ChartPointTooltip<String, Number>> annualTooltips = new ArrayList<>();
     private SalesDashboardData currentData;
 
     public SalesDashboardView() {
@@ -413,6 +417,8 @@ public final class SalesDashboardView extends BorderPane {
         if (data == null) {
             return;
         }
+        monthlyTooltips.forEach(ChartPointTooltip::close);
+        monthlyTooltips.clear();
         ChartMetric metric = chartMetricBox.getValue() == null ? ChartMetric.REVENUE : chartMetricBox.getValue();
         XYChart.Series<String, Number> series = new XYChart.Series<>();
         series.setName(Integer.toString(data.selectedYear()));
@@ -425,22 +431,32 @@ public final class SalesDashboardView extends BorderPane {
             Number value = metric.value(month);
             String label = Month.of(monthNumber).getDisplayName(TextStyle.SHORT, Locale.ITALY);
             XYChart.Data<String, Number> point = new XYChart.Data<>(label, value);
-            String tooltip = Month.of(monthNumber).getDisplayName(TextStyle.FULL, Locale.ITALY)
-                    + " " + data.selectedYear() + "\n" + metric.label() + ": " + metric.format(value, currency, number);
-            point.nodeProperty().addListener((observable, oldNode, node) -> {
-                if (node != null) {
-                    Tooltip.install(node, new Tooltip(tooltip));
-                }
-            });
+            String monthName = Month.of(monthNumber).getDisplayName(TextStyle.FULL, Locale.ITALY);
+            monthlyTooltips.add(new ChartPointTooltip<>(point,
+                    () -> monthName
+                            + " " + series.getName() + "\n" + metric.label() + ": "
+                            + formatChartValue(metric, point.getYValue()), series.nameProperty()));
             series.getData().add(point);
             MonthlySales previousMonth = findMonth(data.previousMonthlySales(), monthNumber);
-            previousSeries.getData().add(new XYChart.Data<>(label, metric.value(previousMonth)));
+            XYChart.Data<String, Number> previousPoint = new XYChart.Data<>(label, metric.value(previousMonth));
+            monthlyTooltips.add(new ChartPointTooltip<>(previousPoint,
+                    () -> monthName + " " + previousSeries.getName() + "\n" + metric.label()
+                            + ": " + formatChartValue(metric, previousPoint.getYValue()), previousSeries.nameProperty()));
+            previousSeries.getData().add(previousPoint);
         }
         if (data.previousMonthlySales().isEmpty()) {
             monthlyChart.getData().setAll(series);
         } else {
             monthlyChart.getData().setAll(series, previousSeries);
         }
+    }
+
+    private String formatChartValue(ChartMetric metric, Number value) {
+        NumberFormat format = metric == ChartMetric.REVENUE
+                ? NumberFormat.getCurrencyInstance(Locale.ITALY)
+                : NumberFormat.getNumberInstance(Locale.ITALY);
+        format.setMaximumFractionDigits(340);
+        return format.format(value) + (metric == ChartMetric.QUANTITY ? " unità" : "");
     }
 
     private MonthlySales findMonth(SalesDashboardData data, int month) {
@@ -455,16 +471,17 @@ public final class SalesDashboardView extends BorderPane {
     }
 
     private void updateAnnualComparison(SalesDashboardData data) {
+        annualTooltips.forEach(ChartPointTooltip::close);
+        annualTooltips.clear();
         XYChart.Series<String, Number> series = new XYChart.Series<>();
         for (AnnualSalesComparison annual : data.annualComparisons()) {
             XYChart.Data<String, Number> point = new XYChart.Data<>(
                     Integer.toString(annual.year()), annual.summary().netRevenue()
             );
-            String tooltip = annual.year() + "\nFatturato: " + currency.format(annual.summary().netRevenue())
-                    + "\nVariazione: " + formatPercentage(annual.revenueChangePercentage());
-            point.nodeProperty().addListener((observable, oldNode, node) -> {
-                if (node != null) Tooltip.install(node, new Tooltip(tooltip));
-            });
+            annualTooltips.add(new ChartPointTooltip<>(point,
+                    () -> annual.year() + "\nFatturato: " + formatChartValue(ChartMetric.REVENUE, point.getYValue())
+                            + "\nVariazione rispetto al " + (annual.year() - 1) + ": "
+                            + formatPercentage(annual.revenueChangePercentage())));
             series.getData().add(point);
         }
         annualChart.getData().setAll(series);

@@ -1,6 +1,7 @@
 package com.orodent.statistiche.features.sales.customers.view;
 
 import com.orodent.statistiche.features.sales.customers.model.*;
+import com.orodent.statistiche.core.components.ChartPointTooltip;
 import javafx.geometry.Pos;
 import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.LineChart;
@@ -18,9 +19,12 @@ import java.text.NumberFormat;
 import java.time.Month;
 import java.time.format.TextStyle;
 import java.util.Locale;
+import java.util.List;
+import java.util.ArrayList;
 
 final class CustomerTrendPane extends VBox {
     private final NumberFormat currency = NumberFormat.getCurrencyInstance(Locale.ITALY);
+    private final List<ChartPointTooltip<String, Number>> pointTooltips = new ArrayList<>();
     private final Label status = new Label();
     private final Label explanation = new Label();
     private final Label orders = new Label();
@@ -69,6 +73,8 @@ final class CustomerTrendPane extends VBox {
         orders.setText(summary.recentOrders() + comparison(summary.orderChangePercentage()));
         revenue.setText(currency.format(summary.recentRevenue()) + comparison(summary.revenueChangePercentage()));
 
+        pointTooltips.forEach(ChartPointTooltip::close);
+        pointTooltips.clear();
         XYChart.Series<String, Number> actual = new XYChart.Series<>();
         actual.setName("Ordini mensili");
         XYChart.Series<String, Number> average = new XYChart.Series<>();
@@ -76,10 +82,23 @@ final class CustomerTrendPane extends VBox {
         for (CustomerTrendPoint point : data.points()) {
             String month = Month.of(point.month()).getDisplayName(TextStyle.SHORT, Locale.ITALY)
                     + " " + Integer.toString(point.year()).substring(2);
-            actual.getData().add(new XYChart.Data<>(month, point.orders()));
-            average.getData().add(new XYChart.Data<>(month, point.movingAverage()));
+            String period = Month.of(point.month()).getDisplayName(TextStyle.FULL, Locale.ITALY) + " " + point.year();
+            XYChart.Data<String, Number> actualPoint = new XYChart.Data<>(month, point.orders());
+            XYChart.Data<String, Number> averagePoint = new XYChart.Data<>(month, point.movingAverage());
+            pointTooltips.add(new ChartPointTooltip<>(actualPoint,
+                    () -> period + "\nOrdini mensili: " + actualPoint.getYValue()));
+            pointTooltips.add(new ChartPointTooltip<>(averagePoint,
+                    () -> period + "\nMedia mobile 3 mesi: " + formatAverage(averagePoint.getYValue()) + " ordini/mese"));
+            actual.getData().add(actualPoint);
+            average.getData().add(averagePoint);
         }
         chart.getData().setAll(actual, average);
+    }
+
+    private String formatAverage(Number value) {
+        NumberFormat format = NumberFormat.getNumberInstance(Locale.ITALY);
+        format.setMaximumFractionDigits(340);
+        return format.format(value);
     }
 
     private void updateDirection(Label label, String metric, BigDecimal percentage) {

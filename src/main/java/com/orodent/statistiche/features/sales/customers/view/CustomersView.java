@@ -1,6 +1,7 @@
 package com.orodent.statistiche.features.sales.customers.view;
 
 import com.orodent.statistiche.features.sales.analysis.model.*;
+import com.orodent.statistiche.core.components.ChartPointTooltip;
 import com.orodent.statistiche.features.sales.analysis.view.AnalysisView;
 import com.orodent.statistiche.features.sales.customers.model.*;
 import javafx.beans.property.SimpleStringProperty;
@@ -27,6 +28,8 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
     private final CustomerDetailScrollState detailScrollState = new CustomerDetailScrollState(detailScroll);
     private String detailCustomerCode;
     private boolean detailAvailable;
+    private final List<ChartPointTooltip<String, Number>> topTooltips = new ArrayList<>();
+    private final List<ChartPointTooltip<String, Number>> yearlyTooltips = new ArrayList<>();
     private final Label detailTitle = new Label("Seleziona un cliente");
     private final Label detailSubtitle = new Label("Clicca una riga per aprire storico, prodotti e frequenza di acquisto.");
     private final CustomerKpiPane detailMetrics = new CustomerKpiPane();
@@ -133,13 +136,19 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
         showData(overview.customers());
         allCustomers = overview.customers().items();
         filterCustomers(search.getText());
+        topTooltips.forEach(ChartPointTooltip::close);
+        topTooltips.clear();
         Map<String, XYChart.Series<String, Number>> series = new LinkedHashMap<>();
         for (TopCustomerHistory value : overview.topHistory()) {
             XYChart.Series<String, Number> customer = series.computeIfAbsent(value.customerCode(), code -> {
                 XYChart.Series<String, Number> created = new XYChart.Series<>();
                 created.setName(value.customerName()); return created;
             });
-            customer.getData().add(new XYChart.Data<>(Integer.toString(value.year()), value.revenue()));
+            XYChart.Data<String, Number> point = new XYChart.Data<>(Integer.toString(value.year()), value.revenue());
+            topTooltips.add(new ChartPointTooltip<>(point,
+                    () -> value.customerName() + " · " + value.customerCode() + "\n" + point.getXValue()
+                            + "\nFatturato: " + currency.format(point.getYValue())));
+            customer.getData().add(point);
         }
         topChart.getData().setAll(series.values());
     }
@@ -253,14 +262,25 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
     }
 
     private void updateYearly(List<CustomerYearSummary> values, CustomerRevenueProjection projection) {
+        yearlyTooltips.forEach(ChartPointTooltip::close);
+        yearlyTooltips.clear();
         XYChart.Series<String, Number> actual = new XYChart.Series<>(); actual.setName("Fatturato registrato");
         XYChart.Series<String, Number> forecast = new XYChart.Series<>(); forecast.setName("Residuo previsto");
         values.forEach(value -> {
             String year = Integer.toString(value.year());
-            actual.getData().add(new XYChart.Data<>(year, value.revenue()));
+            XYChart.Data<String, Number> actualPoint = new XYChart.Data<>(year, value.revenue());
+            yearlyTooltips.add(new ChartPointTooltip<>(actualPoint,
+                    () -> year + " — Fatturato registrato\n" + currency.format(actualPoint.getYValue())));
+            actual.getData().add(actualPoint);
             BigDecimal remaining = value.year() == projection.year()
                     ? projection.projectedRemainingRevenue() : BigDecimal.ZERO;
-            forecast.getData().add(new XYChart.Data<>(year, remaining));
+            XYChart.Data<String, Number> forecastPoint = new XYChart.Data<>(year, remaining);
+            if (value.year() == projection.year() && projection.method() != ProjectionMethod.ACTUAL) {
+                yearlyTooltips.add(new ChartPointTooltip<>(forecastPoint,
+                        () -> year + " — Residuo previsto · Stima\n" + currency.format(forecastPoint.getYValue())
+                                + "\nTotale annuo proiettato: " + currency.format(projection.projectedAnnualRevenue())));
+            }
+            forecast.getData().add(forecastPoint);
         });
         yearlyChart.getData().setAll(actual, forecast);
         yearlyChart.setLegendVisible(true);
