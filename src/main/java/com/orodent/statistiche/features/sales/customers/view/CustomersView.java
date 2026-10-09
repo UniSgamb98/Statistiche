@@ -26,6 +26,10 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
     private final LineChart<String, Number> topChart = lineChart(260, "top-customers-chart");
     private final TextField search = new TextField();
     private final VBox detail = new VBox(14);
+    private final ScrollPane detailScroll = new ScrollPane(detail);
+    private final CustomerDetailScrollState detailScrollState = new CustomerDetailScrollState(detailScroll);
+    private String detailCustomerCode;
+    private boolean detailAvailable;
     private final Label detailTitle = new Label("Seleziona un cliente");
     private final Label detailSubtitle = new Label("Clicca una riga per aprire storico, prodotti e frequenza di acquisto.");
     private final CustomerKpiPane detailMetrics = new CustomerKpiPane();
@@ -52,7 +56,6 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
         table.getSelectionModel().selectedItemProperty().addListener((obs, old, value) -> {
             if (value != null && notifyCustomerSelection) selected.accept(value);
         });
-        ScrollPane detailScroll = new ScrollPane(detail);
         detailScroll.setFitToWidth(true);
         detailScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         detailScroll.getStyleClass().add("customer-detail-scroll");
@@ -100,7 +103,6 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
         detailSubtitle.setWrapText(true);
         detailLoading.setMaxSize(34, 34);
         detailLoading.setVisible(false);
-        detailLoading.setManaged(false);
         monthlyLoading.setMaxSize(28, 28);
         monthlyLoading.setVisible(false);
         monthlyLoading.setManaged(false);
@@ -130,7 +132,12 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
         detailTabs.setVisible(false);
         detailTabs.setManaged(false);
         VBox.setVgrow(detailTabs, Priority.ALWAYS);
-        detail.getChildren().setAll(detailTitle, detailSubtitle, detailLoading, detailMetrics, detailTabs);
+        HBox detailHeading = new HBox(10, detailTitle, detailLoading);
+        detailHeading.setAlignment(Pos.CENTER_LEFT);
+        detailHeading.setMinHeight(34);
+        HBox.setHgrow(detailTitle, Priority.ALWAYS);
+        detailTitle.setMaxWidth(Double.MAX_VALUE);
+        detail.getChildren().setAll(detailHeading, detailSubtitle, detailMetrics, detailTabs);
         detailMetrics.setVisible(false);
         detailMetrics.setManaged(false);
     }
@@ -194,8 +201,10 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
     }
 
     public void showCustomerUnavailable(String customerName, String customerCode, int year) {
+        detailScrollState.reset();
+        detailCustomerCode = customerCode;
+        detailAvailable = false;
         detailLoading.setVisible(false);
-        detailLoading.setManaged(false);
         detailMetrics.setVisible(false);
         detailMetrics.setManaged(false);
         detailTabs.setVisible(false);
@@ -214,14 +223,23 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
     }
 
     public void showDetailLoading(CustomerAnalysisItem customer) {
+        boolean preserveDetail = detailAvailable && Objects.equals(detailCustomerCode, customer.code());
+        if (preserveDetail) {
+            detailScrollState.capture();
+        } else {
+            detailScrollState.reset();
+            detailAvailable = false;
+        }
+        detailCustomerCode = customer.code();
         detailTitle.setText(customer.name());
         detailSubtitle.setText("Caricamento del profilo cliente…");
         detailLoading.setVisible(true);
-        detailLoading.setManaged(true);
-        detailMetrics.setVisible(false);
-        detailMetrics.setManaged(false);
-        detailTabs.setVisible(false);
-        detailTabs.setManaged(false);
+        if (!preserveDetail) {
+            detailMetrics.setVisible(false);
+            detailMetrics.setManaged(false);
+            detailTabs.setVisible(false);
+            detailTabs.setManaged(false);
+        }
     }
 
     public void showDetail(CustomerDetailData data) {
@@ -229,7 +247,6 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
         detailTitle.setText(value.name());
         detailSubtitle.setText("Codice " + value.code() + anagraphic(value));
         detailLoading.setVisible(false);
-        detailLoading.setManaged(false);
         detailMetrics.show(value, data.projection());
         detailMetrics.setVisible(true);
         detailMetrics.setManaged(true);
@@ -240,6 +257,9 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
         products.getItems().setAll(data.products());
         detailTabs.setVisible(true);
         detailTabs.setManaged(true);
+        detailCustomerCode = value.code();
+        detailAvailable = true;
+        detailScrollState.restoreAfterLayout();
     }
 
     public void showMonthlyLoading() {
@@ -270,8 +290,8 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
     }
 
     public void showDetailError(Throwable error) {
+        detailScrollState.restoreAfterLayout();
         detailLoading.setVisible(false);
-        detailLoading.setManaged(false);
         detailSubtitle.setText(error == null || error.getMessage() == null
                 ? "Impossibile caricare il cliente." : error.getMessage());
     }
