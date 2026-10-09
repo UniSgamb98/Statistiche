@@ -42,6 +42,8 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
     private Consumer<CustomerAnalysisItem> selected = item -> { };
     private List<CustomerAnalysisItem> allCustomers = List.of();
     private boolean notifyCustomerSelection = true;
+    private boolean notifyYearSelection = true;
+    private Consumer<Integer> yearSelected = year -> { };
 
     public CustomersView() {
         super("Analisi clienti", "Fatturato, comportamento d'acquisto e storico per cliente");
@@ -70,6 +72,12 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
     }
 
     private void configureFilters() {
+        filterBar.getChildren().remove(refreshButton());
+        yearBox().valueProperty().addListener((observable, previous, current) -> {
+            if (notifyYearSelection && current != null && !Objects.equals(previous, current)) {
+                yearSelected.accept(current);
+            }
+        });
         search.setPromptText("Codice o ragione sociale");
         search.setPrefWidth(260);
         Label searchLabel = new Label("Cerca cliente");
@@ -121,10 +129,19 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
     }
 
     public void showOverview(CustomerOverviewData overview) {
-        showData(overview.customers());
-        allCustomers = overview.customers().items();
-        filterCustomers(search.getText());
+        notifyYearSelection = false;
+        try {
+            updateSelectionSilently(() -> {
+                showData(overview.customers());
+                allCustomers = overview.customers().items();
+                filterCustomers(search.getText());
+            });
+        } finally {
+            notifyYearSelection = true;
+        }
     }
+
+    public void onYearChanged(Consumer<Integer> handler) { yearSelected = handler; }
 
     private void filterCustomers(String text) {
         String term = text == null ? "" : text.trim().toLowerCase(Locale.ROOT);

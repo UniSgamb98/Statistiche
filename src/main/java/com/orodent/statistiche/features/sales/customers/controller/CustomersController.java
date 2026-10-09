@@ -25,7 +25,7 @@ public final class CustomersController {
     public CustomersController(CustomersView view, SalesAnalysisService service) {
         this.view = view;
         this.service = service;
-        view.refreshButton().setOnAction(event -> loadOverview(view.yearBox().getValue()));
+        view.onYearChanged(this::loadOverview);
         view.onCustomerSelected(this::loadDetail);
         view.onComparisonYearsChanged(() -> {
             if (selectedCustomer != null) loadMonthlyHistory();
@@ -50,7 +50,7 @@ public final class CustomersController {
     public void loadInitialData() { loadOverview(null); }
 
     private void loadOverview(Integer year) {
-        if (overviewLoad != null) return;
+        if (disposed || overviewLoad != null) return;
         detailLoad = null;
         monthlyLoad = null;
         view.showLoading();
