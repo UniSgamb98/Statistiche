@@ -1,9 +1,9 @@
-package com.orodent.statistiche.features.sales.customers.model;
+package com.orodent.statistiche.features.sales.projection.model;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-public record CustomerRevenueProjection(
+public record RevenueProjection(
         int year,
         BigDecimal actualRevenue,
         BigDecimal projectedRemainingRevenue,

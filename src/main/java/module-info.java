@@ -15,6 +15,8 @@ module com.orodent.statistiche {
     exports com.orodent.statistiche.core.database.repository.impl;
     exports com.orodent.statistiche.core.database.service;
     exports com.orodent.statistiche.core;
+    exports com.orodent.statistiche.features.sales.projection.model;
+    exports com.orodent.statistiche.features.sales.projection.service;
     exports com.orodent.statistiche.features.sales.dashboard.service;
     exports com.orodent.statistiche.features.sales.analysis.service;
     exports com.orodent.statistiche.features.sales.analysis.model;

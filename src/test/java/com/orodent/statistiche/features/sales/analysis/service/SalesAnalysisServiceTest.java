@@ -1,5 +1,7 @@
 package com.orodent.statistiche.features.sales.analysis.service;
 
+import com.orodent.statistiche.features.sales.projection.model.*;
+
 import com.orodent.statistiche.core.ConnectionProvider;
 import com.orodent.statistiche.features.sales.analysis.model.*;
 import com.orodent.statistiche.features.sales.analysis.repository.SalesAnalysisRepository;
@@ -60,7 +62,7 @@ class SalesAnalysisServiceTest {
         SalesAnalysisService service = new SalesAnalysisService(
                 connectionProvider(), Runnable::run, c -> repository, c -> customers);
 
-        CustomerRevenueProjection projection = service.loadCustomerDetail("C1", 2025, 2)
+        RevenueProjection projection = service.loadCustomerDetail("C1", 2025, 2)
                 .join().projection();
 
         assertEquals(java.time.LocalDate.of(2020, 1, 1), projection.dataFrom());
@@ -131,7 +133,7 @@ class SalesAnalysisServiceTest {
         public SalesDataCoverage loadDataCoverage() {
             return new SalesDataCoverage(java.time.LocalDate.of(2020, 1, 1), java.time.LocalDate.of(2025, 12, 31));
         }
-        public List<CustomerDailyValue> loadDailyRevenueHistory(String code, int fromYear, int toYear) {
+        public List<DailyRevenueValue> loadDailyRevenueHistory(String code, int fromYear, int toYear) {
             return List.of();
         }
     }

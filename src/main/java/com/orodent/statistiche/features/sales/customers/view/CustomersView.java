@@ -1,5 +1,7 @@
 package com.orodent.statistiche.features.sales.customers.view;
 
+import com.orodent.statistiche.features.sales.projection.model.*;
+
 import com.orodent.statistiche.features.sales.analysis.model.*;
 import com.orodent.statistiche.core.components.ChartPointTooltip;
 import com.orodent.statistiche.features.sales.analysis.view.AnalysisView;
@@ -261,7 +263,7 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
                 metric("Quantità", number.format(data.summary().secondaryValue())));
     }
 
-    private void updateYearly(List<CustomerYearSummary> values, CustomerRevenueProjection projection) {
+    private void updateYearly(List<CustomerYearSummary> values, RevenueProjection projection) {
         yearlyTooltips.forEach(ChartPointTooltip::close);
         yearlyTooltips.clear();
         XYChart.Series<String, Number> actual = new XYChart.Series<>(); actual.setName("Fatturato registrato");
@@ -287,7 +289,7 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
         yearlyChart.setAnimated(false);
     }
 
-    private void updateProjectionNote(CustomerRevenueProjection projection) {
+    private void updateProjectionNote(RevenueProjection projection) {
         DateTimeFormatter format = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         if (projection.method() == ProjectionMethod.ACTUAL) {
             projectionNote.setText("Consuntivo annuale · Dati disponibili dal "

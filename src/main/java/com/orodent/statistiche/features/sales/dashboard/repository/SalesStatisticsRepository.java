@@ -6,10 +6,17 @@ import com.orodent.statistiche.features.sales.dashboard.model.SalesRankingItem;
 import com.orodent.statistiche.features.sales.dashboard.model.SalesSummary;
 
 import java.util.List;
+import java.util.Optional;
+import com.orodent.statistiche.features.sales.projection.model.DailyRevenueValue;
+import com.orodent.statistiche.features.sales.projection.model.SalesDataCoverage;
 
 public interface SalesStatisticsRepository {
 
     List<Integer> findAvailableYears();
+
+    Optional<SalesDataCoverage> loadDataCoverage(int year);
+
+    List<DailyRevenueValue> loadDailyRevenueHistory(int fromYear, int toYear);
 
     SalesSummary loadSummary(SalesFilter filter);
 

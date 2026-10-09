@@ -18,6 +18,9 @@ import java.time.Year;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Objects;
+import com.orodent.statistiche.features.sales.projection.model.RevenueProjection;
+import com.orodent.statistiche.features.sales.projection.model.DailyRevenueValue;
+import com.orodent.statistiche.features.sales.projection.service.RevenueProjectionCalculator;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
@@ -89,13 +92,26 @@ public record SalesDashboardService(ConnectionProvider connectionProvider, Execu
         List<Integer> chronologicalYears = years.stream().sorted().toList();
         List<AnnualSalesComparison> result = new ArrayList<>();
         SalesSummary previous = null;
+        int currentYear = Year.now().getValue();
+        RevenueProjectionCalculator calculator = new RevenueProjectionCalculator();
+        List<DailyRevenueValue> history =
+                years.contains(currentYear) ? repository.loadDailyRevenueHistory(
+                        chronologicalYears.getFirst(), currentYear) : List.of();
         for (int year : chronologicalYears) {
             SalesSummary current = repository.loadSummary(SalesFilter.wholeYear(year));
+            RevenueProjection projection = null;
+            if (year == currentYear && current.netRevenue().signum() > 0) {
+                projection = repository.loadDataCoverage(year)
+                        .filter(coverage -> !coverage.through().isAfter(LocalDate.now()))
+                        .map(coverage -> calculator.calculate(year, current.netRevenue(), coverage, history, true))
+                        .orElse(null);
+            }
             result.add(new AnnualSalesComparison(
                     year,
                     current,
                     percentageChange(current.netRevenue(), previous == null ? null : previous.netRevenue()),
-                    percentageChange(current.quantity(), previous == null ? null : previous.quantity())
+                    percentageChange(current.quantity(), previous == null ? null : previous.quantity()),
+                    projection
             ));
             previous = current;
         }

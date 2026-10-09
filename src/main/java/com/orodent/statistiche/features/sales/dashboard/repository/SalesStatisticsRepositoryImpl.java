@@ -15,6 +15,9 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import com.orodent.statistiche.features.sales.projection.model.DailyRevenueValue;
+import com.orodent.statistiche.features.sales.projection.model.SalesDataCoverage;
 
 public final class SalesStatisticsRepositoryImpl implements SalesStatisticsRepository {
 
@@ -53,6 +56,41 @@ public final class SalesStatisticsRepositoryImpl implements SalesStatisticsRepos
             return List.copyOf(years);
         } catch (SQLException e) {
             throw new RepositoryException("Errore durante la lettura degli anni disponibili", e);
+        }
+    }
+
+    @Override
+    public Optional<SalesDataCoverage> loadDataCoverage(int year) {
+        String sql = "SELECT MIN(data_vendita), MAX(data_vendita) FROM vendite_dettaglio WHERE YEAR(data_vendita)=?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, year);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next() || rs.getDate(1) == null) return Optional.empty();
+                return Optional.of(new SalesDataCoverage(rs.getDate(1).toLocalDate(), rs.getDate(2).toLocalDate()));
+            }
+        } catch (SQLException e) {
+            throw new RepositoryException("Errore durante la lettura della copertura annuale", e);
+        }
+    }
+
+    @Override
+    public List<DailyRevenueValue> loadDailyRevenueHistory(int fromYear, int toYear) {
+        String sql = """
+                SELECT data_vendita, SUM(%s) AS fatturato FROM vendite_dettaglio
+                WHERE YEAR(data_vendita) BETWEEN ? AND ?
+                GROUP BY data_vendita ORDER BY data_vendita
+                """.formatted(SIGNED_REVENUE);
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, fromYear);
+            ps.setInt(2, toYear);
+            try (ResultSet rs = ps.executeQuery()) {
+                List<DailyRevenueValue> values = new ArrayList<>();
+                while (rs.next()) values.add(new DailyRevenueValue(rs.getDate("data_vendita").toLocalDate(),
+                        rs.getBigDecimal("fatturato")));
+                return List.copyOf(values);
+            }
+        } catch (SQLException e) {
+            throw new RepositoryException("Errore durante la lettura dello storico giornaliero vendite", e);
         }
     }
 

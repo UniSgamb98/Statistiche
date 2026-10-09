@@ -1,5 +1,7 @@
 package com.orodent.statistiche.features.sales.customers.repository;
 
+import com.orodent.statistiche.features.sales.projection.model.*;
+
 import com.orodent.statistiche.core.database.repository.RepositoryException;
 import com.orodent.statistiche.features.sales.customers.model.*;
 
@@ -106,7 +108,7 @@ public final class CustomerAnalysisRepositoryImpl implements CustomerAnalysisRep
         } catch (SQLException e) { throw failure(e); }
     }
 
-    @Override public List<CustomerDailyValue> loadDailyRevenueHistory(String code, int fromYear, int toYear) {
+    @Override public List<DailyRevenueValue> loadDailyRevenueHistory(String code, int fromYear, int toYear) {
         String sql = """
                 SELECT data_vendita, SUM(importo_netto) fatturato FROM vendite_dettaglio
                 WHERE codice_cliente=? AND YEAR(data_vendita) BETWEEN ? AND ? AND tipo_operazione='VENDITA'
@@ -115,8 +117,8 @@ public final class CustomerAnalysisRepositoryImpl implements CustomerAnalysisRep
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setString(1, code); ps.setInt(2, fromYear); ps.setInt(3, toYear);
             try (ResultSet rs = ps.executeQuery()) {
-                List<CustomerDailyValue> values = new ArrayList<>();
-                while (rs.next()) values.add(new CustomerDailyValue(
+                List<DailyRevenueValue> values = new ArrayList<>();
+                while (rs.next()) values.add(new DailyRevenueValue(
                         rs.getDate("data_vendita").toLocalDate(), rs.getBigDecimal("fatturato")));
                 return List.copyOf(values);
             }

@@ -14,9 +14,14 @@ import java.math.BigDecimal;
 import java.sql.Connection;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
+import java.time.Year;
+import java.util.Map;
+import com.orodent.statistiche.features.sales.projection.model.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class SalesDashboardServiceTest {
 
@@ -79,6 +84,67 @@ class SalesDashboardServiceTest {
         assertTrue(data.availableYears().isEmpty());
     }
 
+    @Test
+    void projectsAnnualSeasonalityIndependentlyOfMonthlyFilter() {
+        int year = Year.now().getValue();
+        FakeRepository repository = projectionRepository(year);
+        SalesDashboardService service = new SalesDashboardService(connectionProvider(), Runnable::run, connection -> repository);
+        SalesDashboardData wholeYear = service.load(year, null, null).join();
+        SalesDashboardData filtered = service.load(year, LocalDate.of(year, 3, 1), LocalDate.of(year, 3, 31)).join();
+        RevenueProjection projection = filtered.annualComparisons().getLast().projection();
+        assertEquals(ProjectionMethod.SEASONAL, projection.method());
+        assertEquals(ProjectionConfidence.MEDIUM, projection.confidence());
+        assertEquals(new BigDecimal("120.00"), projection.projectedAnnualRevenue());
+        assertEquals(new BigDecimal("60.00"), projection.projectedRemainingRevenue());
+        assertEquals(wholeYear.annualComparisons().getLast().projection(), projection);
+        assertNull(filtered.annualComparisons().getFirst().projection());
+    }
+
+    @Test
+    void usesLinearProjectionWithoutHistoricalSeasonality() {
+        int year = Year.now().getValue();
+        FakeRepository repository = projectionRepository(year);
+        repository.history = List.of();
+        SalesDashboardService service = new SalesDashboardService(connectionProvider(), Runnable::run, connection -> repository);
+        assertEquals(ProjectionMethod.LINEAR, service.load(year, null, null).join()
+                .annualComparisons().getLast().projection().method());
+    }
+
+    @Test
+    void leavesProjectionUnavailableWithoutCoverageOrWithFutureDates() {
+        int year = Year.now().getValue();
+        FakeRepository repository = projectionRepository(year);
+        SalesDashboardService service = new SalesDashboardService(connectionProvider(), Runnable::run, connection -> repository);
+        repository.coverage = Optional.empty();
+        assertNull(service.load(year, null, null).join().annualComparisons().getLast().projection());
+        repository.coverage = Optional.of(new SalesDataCoverage(LocalDate.of(year, 1, 1), LocalDate.now().plusDays(1)));
+        assertNull(service.load(year, null, null).join().annualComparisons().getLast().projection());
+    }
+
+    @Test
+    void doesNotExtrapolateNonPositiveNetRevenue() {
+        int year = Year.now().getValue();
+        FakeRepository repository = projectionRepository(year);
+        repository.annualSummaries = Map.of(year, new SalesSummary(new BigDecimal("-10"), BigDecimal.ZERO, 1, 2, BigDecimal.ZERO));
+        SalesDashboardService service = new SalesDashboardService(connectionProvider(), Runnable::run, connection -> repository);
+        assertNull(service.load(year, null, null).join().annualComparisons().getLast().projection());
+    }
+
+    private FakeRepository projectionRepository(int year) {
+        FakeRepository repository = new FakeRepository();
+        repository.years = List.of(year, year - 1, year - 2);
+        SalesSummary historical = new SalesSummary(new BigDecimal("100"), BigDecimal.TEN, 1, 2, BigDecimal.ZERO);
+        SalesSummary current = new SalesSummary(new BigDecimal("60"), BigDecimal.TEN, 1, 2, BigDecimal.ZERO);
+        repository.annualSummaries = Map.of(year, current, year - 1, historical, year - 2, historical);
+        repository.coverage = Optional.of(new SalesDataCoverage(LocalDate.of(year, 1, 1), LocalDate.of(year, 1, 1)));
+        repository.history = List.of(
+                new DailyRevenueValue(LocalDate.of(year - 2, 1, 1), new BigDecimal("50")),
+                new DailyRevenueValue(LocalDate.of(year - 2, 12, 31), new BigDecimal("50")),
+                new DailyRevenueValue(LocalDate.of(year - 1, 1, 1), new BigDecimal("50")),
+                new DailyRevenueValue(LocalDate.of(year - 1, 12, 31), new BigDecimal("50")));
+        return repository;
+    }
+
     private ConnectionProvider connectionProvider() {
         return () -> (Connection) Proxy.newProxyInstance(
                 Connection.class.getClassLoader(),
@@ -105,6 +171,19 @@ class SalesDashboardServiceTest {
                 new BigDecimal("100")
         );
         private SalesFilter summaryFilter;
+        private Optional<SalesDataCoverage> coverage = Optional.empty();
+        private List<DailyRevenueValue> history = List.of();
+        private Map<Integer, SalesSummary> annualSummaries = Map.of();
+
+        @Override
+        public Optional<SalesDataCoverage> loadDataCoverage(int year) {
+            return coverage;
+        }
+
+        @Override
+        public List<DailyRevenueValue> loadDailyRevenueHistory(int fromYear, int toYear) {
+            return history;
+        }
 
         @Override
         public List<Integer> findAvailableYears() {
@@ -114,7 +193,7 @@ class SalesDashboardServiceTest {
         @Override
         public SalesSummary loadSummary(SalesFilter filter) {
             summaryFilter = filter;
-            return summary;
+            return annualSummaries.getOrDefault(filter.from().getYear(), summary);
         }
 
         @Override

@@ -1,4 +1,4 @@
-package com.orodent.statistiche.features.sales.customers.model;
+package com.orodent.statistiche.features.sales.projection.model;
 
 import java.time.LocalDate;
 

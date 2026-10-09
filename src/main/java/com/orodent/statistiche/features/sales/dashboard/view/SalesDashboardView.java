@@ -11,7 +11,6 @@ import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.chart.CategoryAxis;
-import javafx.scene.chart.BarChart;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
@@ -64,7 +63,7 @@ public final class SalesDashboardView extends BorderPane {
     private final Label quantityChange = comparisonValue();
     private final Label customersChange = comparisonValue();
     private final Label documentsChange = comparisonValue();
-    private final BarChart<String, Number> annualChart = createAnnualChart();
+    private final AnnualSalesComparisonPane annualComparisonPane = new AnnualSalesComparisonPane();
     private final TableView<AnnualSalesComparison> annualTable = createAnnualTable();
     private final ComboBox<ChartMetric> chartMetricBox = new ComboBox<>();
     private final LineChart<String, Number> monthlyChart = createMonthlyChart();
@@ -73,7 +72,6 @@ public final class SalesDashboardView extends BorderPane {
     private final NumberFormat currency = NumberFormat.getCurrencyInstance(Locale.ITALY);
     private final NumberFormat number = NumberFormat.getNumberInstance(Locale.ITALY);
     private final List<ChartPointTooltip<String, Number>> monthlyTooltips = new ArrayList<>();
-    private final List<ChartPointTooltip<String, Number>> annualTooltips = new ArrayList<>();
     private SalesDashboardData currentData;
 
     public SalesDashboardView() {
@@ -270,7 +268,7 @@ public final class SalesDashboardView extends BorderPane {
         HBox chartHeader = new HBox(12, new Label("Andamento mensile"), chartMetricBox);
         chartHeader.setAlignment(Pos.CENTER_LEFT);
         chartHeader.getChildren().getFirst().getStyleClass().add("card-title");
-        VBox historicalCard = card("Confronto storico automatico", annualChart);
+        VBox historicalCard = card("Confronto storico automatico", annualComparisonPane);
         VBox annualTableCard = card("Riepilogo di tutti gli anni", annualTable);
         GridPane history = new GridPane();
         history.setHgap(18);
@@ -345,14 +343,6 @@ public final class SalesDashboardView extends BorderPane {
         chart.setAnimated(false);
         chart.setCreateSymbols(true);
         chart.setPrefHeight(300);
-        return chart;
-    }
-
-    private BarChart<String, Number> createAnnualChart() {
-        BarChart<String, Number> chart = new BarChart<>(new CategoryAxis(), new NumberAxis());
-        chart.setLegendVisible(false);
-        chart.setAnimated(false);
-        chart.setPrefHeight(310);
         return chart;
     }
 
@@ -471,20 +461,7 @@ public final class SalesDashboardView extends BorderPane {
     }
 
     private void updateAnnualComparison(SalesDashboardData data) {
-        annualTooltips.forEach(ChartPointTooltip::close);
-        annualTooltips.clear();
-        XYChart.Series<String, Number> series = new XYChart.Series<>();
-        for (AnnualSalesComparison annual : data.annualComparisons()) {
-            XYChart.Data<String, Number> point = new XYChart.Data<>(
-                    Integer.toString(annual.year()), annual.summary().netRevenue()
-            );
-            annualTooltips.add(new ChartPointTooltip<>(point,
-                    () -> annual.year() + "\nFatturato: " + formatChartValue(ChartMetric.REVENUE, point.getYValue())
-                            + "\nVariazione rispetto al " + (annual.year() - 1) + ": "
-                            + formatPercentage(annual.revenueChangePercentage())));
-            series.getData().add(point);
-        }
-        annualChart.getData().setAll(series);
+        annualComparisonPane.show(data.annualComparisons());
         annualTable.getItems().setAll(data.annualComparisons());
     }
 

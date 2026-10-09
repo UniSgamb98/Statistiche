@@ -1,8 +1,8 @@
 package com.orodent.statistiche.features.sales.customers.view;
 
 import com.orodent.statistiche.features.sales.customers.model.CustomerDetail;
-import com.orodent.statistiche.features.sales.customers.model.CustomerRevenueProjection;
-import com.orodent.statistiche.features.sales.customers.model.ProjectionMethod;
+import com.orodent.statistiche.features.sales.projection.model.RevenueProjection;
+import com.orodent.statistiche.features.sales.projection.model.ProjectionMethod;
 import javafx.scene.control.Label;
 import javafx.scene.layout.TilePane;
 import javafx.scene.layout.VBox;
@@ -32,7 +32,7 @@ final class CustomerKpiPane extends TilePane {
         }
     }
 
-    void show(CustomerDetail detail, CustomerRevenueProjection projection) {
+    void show(CustomerDetail detail, RevenueProjection projection) {
         value(Metric.REVENUE, currency.format(detail.revenue()));
         value(Metric.DOCUMENTS, number.format(detail.documents()));
         value(Metric.AVERAGE_VALUE, currency.format(detail.averageDocumentValue()));

@@ -1,5 +1,7 @@
 package com.orodent.statistiche.features.sales.analysis.service;
 
+import com.orodent.statistiche.features.sales.projection.model.*;
+
 import com.orodent.statistiche.core.ConnectionProvider;
 import com.orodent.statistiche.features.sales.analysis.model.*;
 import com.orodent.statistiche.features.sales.analysis.repository.SalesAnalysisRepository;
@@ -9,7 +11,7 @@ import com.orodent.statistiche.features.sales.customers.repository.CustomerAnaly
 import com.orodent.statistiche.features.sales.customers.repository.CustomerAnalysisRepositoryImpl;
 import com.orodent.statistiche.features.sales.customers.service.CustomerMonthlySeriesNormalizer;
 import com.orodent.statistiche.features.sales.customers.service.CustomerTrendCalculator;
-import com.orodent.statistiche.features.sales.customers.service.CustomerRevenueProjectionCalculator;
+import com.orodent.statistiche.features.sales.projection.service.RevenueProjectionCalculator;
 
 import java.sql.Connection;
 import java.time.Year;
@@ -27,7 +29,7 @@ public final class SalesAnalysisService {
     private final Function<Connection, CustomerAnalysisRepository> customerRepositoryFactory;
     private final CustomerMonthlySeriesNormalizer monthlySeriesNormalizer = new CustomerMonthlySeriesNormalizer();
     private final CustomerTrendCalculator customerTrendCalculator = new CustomerTrendCalculator();
-    private final CustomerRevenueProjectionCalculator projectionCalculator = new CustomerRevenueProjectionCalculator();
+    private final RevenueProjectionCalculator projectionCalculator = new RevenueProjectionCalculator();
 
     public SalesAnalysisService(ConnectionProvider connectionProvider, Executor executor) {
         this(connectionProvider, executor, SalesAnalysisRepositoryImpl::new, CustomerAnalysisRepositoryImpl::new);
@@ -100,7 +102,7 @@ public final class SalesAnalysisService {
             List<CustomerMonthlyValue> trendMonths = monthlySeriesNormalizer.fillMissingMonths(
                     repository.loadMonthlyHistory(customerCode, trendFromYear, year), trendFromYear, year);
             int historyFromYear = yearly.isEmpty() ? year : yearly.getFirst().year();
-            CustomerRevenueProjection projection = projectionCalculator.calculate(year, detail.revenue(),
+            RevenueProjection projection = projectionCalculator.calculate(year, detail.revenue(),
                     repository.loadDataCoverage(),
                     repository.loadDailyRevenueHistory(customerCode, historyFromYear, year),
                     year == java.time.Year.now().getValue());

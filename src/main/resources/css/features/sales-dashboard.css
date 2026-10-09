@@ -100,3 +100,17 @@
 .axis {
     -fx-tick-label-fill: #68758a;
 }
+
+
+.annual-sales-comparison-chart .default-color0.chart-bar {
+    -fx-bar-fill: #176b87;
+}
+
+.annual-sales-comparison-chart .default-color1.chart-bar {
+    -fx-bar-fill: #a9d7e5;
+}
+
+.annual-sales-projection-note {
+    -fx-text-fill: #64748b;
+    -fx-font-size: 12px;
+}
