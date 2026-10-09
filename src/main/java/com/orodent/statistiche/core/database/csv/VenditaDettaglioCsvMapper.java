@@ -148,12 +148,8 @@ public final class VenditaDettaglioCsvMapper implements CsvRowMapper<VenditaDett
     }
 
     private BigDecimal parseDiscountComponent(String column, String rawValue, String component) {
-        String numericValue = component.trim();
-        if (numericValue.endsWith("%")) {
-            numericValue = numericValue.substring(0, numericValue.length() - 1).trim();
-        }
         try {
-            BigDecimal percentage = new BigDecimal(numericValue.replace(',', '.'));
+            BigDecimal percentage = new BigDecimal(component.trim().replace(',', '.'));
             if (percentage.signum() < 0 || percentage.compareTo(BigDecimal.valueOf(100)) > 0) {
                 throw mappingError(column, rawValue, "Ogni percentuale di sconto deve essere compresa tra 0 e 100");
             }

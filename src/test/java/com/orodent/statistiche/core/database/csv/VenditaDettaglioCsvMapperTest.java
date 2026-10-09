@@ -177,42 +177,6 @@ class VenditaDettaglioCsvMapperTest {
         assertFalse(result.valid());
     }
 
-    @Test
-    void importsDiscountWithTrailingPercentSign() {
-        CsvImporter<VenditaDettaglio> importer = new CsvImporter<>(new CsvReader(), mapper, validator);
-        String row = "01/10/2026;000976;MAGMOD;VEND;CLIENTE;PRODOTTO;"
-                + "Prodotto;N.;1;EUR;1;100;40%;40;60;60";
-
-        CsvImportResult<VenditaDettaglio> result = importer.importReader(
-                new StringReader(HEADER + "\n" + row), CsvReadOptions.semicolonSeparated());
-
-        assertTrue(result.valid());
-        assertEquals(1, result.validRows().size());
-        assertEquals(0, new BigDecimal("40").compareTo(result.validRows().getFirst().value().scontoPercentuale()));
-    }
-
-    @Test
-    void acceptsPercentSignsInDecimalAndCompoundDiscounts() {
-        for (String discount : new String[]{"40,5%", " 40,5 % ", "+40,5%", "30%+15%", "30+15%"}) {
-            String row = "01/10/2026;000976;MAGMOD;VEND;CLIENTE;PRODOTTO;"
-                    + "Prodotto;N.;1;EUR;1;100;" + discount + ";40,5;59,5;59,5";
-
-            assertEquals(new BigDecimal("40.5"), readAndMap(row).scontoPercentuale(), discount);
-        }
-    }
-
-    @Test
-    void rejectsMalformedOrOutOfRangePercentDiscounts() {
-        for (String discount : new String[]{"%", "40%%", "%40", "4%0", "40%+", "101%", "-1%"}) {
-            String row = "01/10/2026;000976;MAGMOD;VEND;CLIENTE;PRODOTTO;"
-                    + "Prodotto;N.;1;EUR;1;100;" + discount + ";0;100;100";
-
-            CsvMappingException exception = assertThrows(CsvMappingException.class, () -> readAndMap(row), discount);
-            assertEquals(VenditaDettaglioCsvMapper.SCONTO, exception.column());
-            assertEquals(discount, exception.rawValue());
-        }
-    }
-
     private VenditaDettaglio readAndMap(String row) {
         return mapper.map(new CsvReader()
                 .read(new StringReader(HEADER + "\n" + row), CsvReadOptions.semicolonSeparated())
