@@ -133,3 +133,7 @@
 .top-customers-chart .chart-vertical-grid-lines { -fx-stroke: #e7edf4; }
 .top-customers-chart .chart-legend { -fx-padding: 10px 6px 4px 6px; }
 .top-customers-chart .chart-legend-item { -fx-padding: 2px 10px 2px 2px; }
+
+.dashboard-fixed-filters {
+    -fx-padding: 28px 34px 0 34px;
+}

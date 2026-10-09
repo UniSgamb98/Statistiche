@@ -77,7 +77,7 @@ public final class SalesDashboardView extends BorderPane {
 
     public SalesDashboardView() {
         getStyleClass().add("page");
-        setTop(header);
+        setTop(buildFixedHeader());
         setCenter(buildContent());
         showLoading();
     }
@@ -196,12 +196,18 @@ public final class SalesDashboardView extends BorderPane {
         retryButton.setManaged(true);
     }
 
+    private VBox buildFixedHeader() {
+        VBox filterSection = new VBox(buildFilters());
+        filterSection.getStyleClass().add("dashboard-fixed-filters");
+        return new VBox(header, filterSection);
+    }
+
     private StackPane buildContent() {
         VBox content = new VBox(20);
-        content.setPadding(new Insets(28, 34, 36, 34));
+        content.setPadding(new Insets(20, 34, 36, 34));
         HBox errorState = new HBox(12, errorLabel, retryButton);
         errorState.setAlignment(Pos.CENTER_LEFT);
-        content.getChildren().addAll(buildFilters(), buildEmptyState(), dashboard, errorState);
+        content.getChildren().addAll(buildEmptyState(), dashboard, errorState);
         buildDashboard();
 
         ScrollPane scrollPane = new ScrollPane(content);
