@@ -3,6 +3,7 @@ module com.orodent.statistiche {
     requires java.sql;
     requires org.apache.derby.server;
     requires org.apache.derby.tools;
+    requires org.apache.derby.client;
 
 
     exports com.orodent.statistiche;
