@@ -1,6 +1,7 @@
 package com.orodent.statistiche.features.sales.customers.view;
 
 import com.orodent.statistiche.features.sales.customers.model.CustomerMonthlyValue;
+import com.orodent.statistiche.core.components.ChartPointTooltip;
 import javafx.collections.FXCollections;
 import javafx.geometry.Pos;
 import javafx.geometry.Side;
@@ -21,6 +22,7 @@ import java.text.NumberFormat;
 import java.time.Month;
 import java.time.format.TextStyle;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -35,6 +37,7 @@ final class CustomerMonthlyPane extends VBox {
     private final LineChart<String, Number> chart = new LineChart<>(new CategoryAxis(), valueAxis);
     private final Label error = new Label();
     private final ProgressIndicator loading = new ProgressIndicator();
+    private final List<ChartPointTooltip<String, Number>> pointTooltips = new ArrayList<>();
     private final Map<Integer, List<CustomerMonthlyValue>> history = new TreeMap<>(Comparator.reverseOrder());
 
     CustomerMonthlyPane() {
@@ -87,6 +90,8 @@ final class CustomerMonthlyPane extends VBox {
     }
 
     void showHistory(List<CustomerMonthlyValue> values) {
+        pointTooltips.forEach(ChartPointTooltip::close);
+        pointTooltips.clear();
         history.clear();
         values.stream().map(CustomerMonthlyValue::year).distinct().forEach(year ->
                 history.put(year, values.stream().filter(value -> value.year() == year)
@@ -95,9 +100,17 @@ final class CustomerMonthlyPane extends VBox {
         history.forEach((year, months) -> {
             XYChart.Series<String, Number> series = new XYChart.Series<>();
             series.setName(Integer.toString(year));
-            months.forEach(value -> series.getData().add(new XYChart.Data<>(
-                    Month.of(value.month()).getDisplayName(TextStyle.SHORT, Locale.ITALY),
-                    metric.getValue().value(value))));
+            months.forEach(value -> {
+                XYChart.Data<String, Number> point = new XYChart.Data<>(
+                        Month.of(value.month()).getDisplayName(TextStyle.SHORT, Locale.ITALY),
+                        metric.getValue().value(value));
+                pointTooltips.add(new ChartPointTooltip<>(point,
+                        () -> Month.of(value.month()).getDisplayName(TextStyle.FULL, Locale.ITALY)
+                                + " " + series.getName() + "\n" + metric.getValue()
+                                + ": " + formatPointValue(point.getYValue()),
+                        metric.valueProperty(), series.nameProperty()));
+                series.getData().add(point);
+            });
             chart.getData().add(series);
         });
         setErrorVisible(false);
@@ -128,6 +141,14 @@ final class CustomerMonthlyPane extends VBox {
                 series.getData().get(index).setYValue(selected.value(months.get(index)));
             }
         }
+    }
+
+    private String formatPointValue(Number value) {
+        NumberFormat format = metric.getValue() == Metric.REVENUE
+                ? NumberFormat.getCurrencyInstance(Locale.ITALY)
+                : NumberFormat.getNumberInstance(Locale.ITALY);
+        format.setMaximumFractionDigits(340);
+        return format.format(value) + (metric.getValue() == Metric.QUANTITY ? " unità" : "");
     }
 
     private void setLoading(boolean active) {
