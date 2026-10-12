@@ -69,6 +69,28 @@ public final class CustomerAnalysisRepositoryImpl implements CustomerAnalysisRep
         }catch(SQLException e){throw failure(e);}
     }
 
+    @Override
+    public CustomerPeriodTotals loadPeriodTotals(String code, LocalDate from, LocalDate through) {
+        String sql = """
+                SELECT COALESCE(SUM(importo_netto), 0) fatturato,
+                       COALESCE(SUM(quantita), 0) quantita, COUNT(DISTINCT documento_id) documenti
+                FROM vendite_dettaglio
+                WHERE codice_cliente=? AND data_vendita BETWEEN ? AND ? AND tipo_operazione='VENDITA'
+                """;
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, code);
+            statement.setDate(2, java.sql.Date.valueOf(from));
+            statement.setDate(3, java.sql.Date.valueOf(through));
+            try (ResultSet result = statement.executeQuery()) {
+                result.next();
+                return new CustomerPeriodTotals(result.getBigDecimal("fatturato"),
+                        result.getBigDecimal("quantita"), result.getInt("documenti"));
+            }
+        } catch (SQLException failure) {
+            throw failure(failure);
+        }
+    }
+
     @Override public List<CustomerProductItem> loadProducts(String code,int year){
         String sql="""
                 SELECT codice_prodotto,MAX(descrizione_prodotto) descrizione,SUM(importo_netto) fatturato,SUM(quantita) quantita

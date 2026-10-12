@@ -93,6 +93,22 @@ class SalesAnalysisServiceTest {
         assertEquals(2026, customers.monthlyToYear);
     }
 
+    @Test
+    void usesCommonArchiveCoverageEvenWhenTheCustomerLastBoughtInJanuary() {
+        FakeCustomerRepository customers = new FakeCustomerRepository();
+        SalesAnalysisService service = new SalesAnalysisService(connectionProvider(), Runnable::run,
+                c -> new FakeRepository(), c -> customers);
+        var data = service.loadCustomerDetail("C1", 2025, 2).join();
+        assertEquals(java.time.LocalDate.of(2025, 12, 31), data.trend().summary().annual().period().through());
+        assertEquals(java.time.LocalDate.of(2025, 12, 31), data.trend().summary().rolling().period().through());
+        assertEquals(24, data.trend().points().size());
+        assertEquals(12, data.trend().points().getLast().month());
+        assertEquals(0, data.trend().points().getLast().orders());
+        assertEquals(List.of(
+                java.time.LocalDate.of(2025, 1, 1), java.time.LocalDate.of(2024, 1, 1),
+                java.time.LocalDate.of(2025, 1, 1), java.time.LocalDate.of(2024, 1, 1)), customers.periodStarts);
+    }
+
     private ConnectionProvider connectionProvider() {
         return () -> (Connection) Proxy.newProxyInstance(Connection.class.getClassLoader(),
                 new Class<?>[]{Connection.class}, (proxy, method, args) -> null);
@@ -118,6 +134,7 @@ class SalesAnalysisServiceTest {
     }
 
     private static final class FakeCustomerRepository implements CustomerAnalysisRepository {
+        final java.util.List<java.time.LocalDate> periodStarts = new java.util.ArrayList<>();
         String monthlyCustomerCode;
         int monthlyFromYear;
         int monthlyToYear;
@@ -137,6 +154,10 @@ class SalesAnalysisServiceTest {
             monthlyFromYear = fromYear;
             monthlyToYear = toYear;
             return List.of();
+        }
+        public CustomerPeriodTotals loadPeriodTotals(String code, java.time.LocalDate from, java.time.LocalDate through) {
+            periodStarts.add(from);
+            return CustomerPeriodTotals.empty();
         }
         public List<CustomerProductItem> loadProducts(String code, int year) { return List.of(); }
         public SalesDataCoverage loadDataCoverage() {

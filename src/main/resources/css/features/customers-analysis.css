@@ -97,12 +97,43 @@
 .metric-stable { -fx-text-fill: #64748b; }
 .metric-declining { -fx-text-fill: #b91c1c; }
 
-.customer-trend-indicator {
-    -fx-padding: 10px 12px;
+.customer-trend-comparisons {
     -fx-background-color: white;
-    -fx-background-radius: 8px;
+    -fx-background-radius: 10px;
     -fx-border-color: #e0e6ef;
-    -fx-border-radius: 8px;
+    -fx-border-radius: 10px;
+}
+
+.customer-trend-comparison-row {
+    -fx-padding: 14px;
+}
+
+.customer-trend-annual-row {
+    -fx-border-color: #e0e6ef transparent transparent transparent;
+    -fx-border-width: 1px 0 0 0;
+}
+
+.customer-trend-period-title,
+.customer-trend-chart-title {
+    -fx-text-fill: #173f5f;
+    -fx-font-size: 14px;
+    -fx-font-weight: 700;
+}
+
+.customer-trend-period,
+.customer-trend-metric-title,
+.customer-trend-orders {
+    -fx-text-fill: #64748b;
+    -fx-font-size: 12px;
+}
+
+.customer-trend-period-note {
+    -fx-text-fill: #92400e;
+    -fx-font-size: 12px;
+}
+
+.customer-trend-comparison-row .customer-trend-direction {
+    -fx-padding: 0;
 }
 
 .customer-trend-value {

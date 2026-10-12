@@ -1,6 +1,7 @@
 package com.orodent.statistiche.features.sales.customers.service;
 
 import com.orodent.statistiche.features.sales.customers.model.*;
+import com.orodent.statistiche.features.sales.projection.model.SalesDataCoverage;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -8,32 +9,33 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class CustomerTrendCalculator {
-    private static final int WINDOW_MONTHS = 12;
     private static final int CHART_MONTHS = 24;
     private final CustomerTrendNarrative narrative = new CustomerTrendNarrative();
 
-    public CustomerTrendData calculate(List<CustomerMonthlyValue> chronologicalValues) {
+    public CustomerTrendData calculate(List<CustomerMonthlyValue> chronologicalValues,
+                                       CustomerTrendComparison rolling, CustomerTrendComparison annual) {
         List<CustomerMonthlyValue> values = chronologicalValues.size() <= CHART_MONTHS
                 ? chronologicalValues
                 : chronologicalValues.subList(chronologicalValues.size() - CHART_MONTHS, chronologicalValues.size());
-        List<CustomerMonthlyValue> recent = tail(values, WINDOW_MONTHS);
-        List<CustomerMonthlyValue> previous = values.subList(
-                Math.max(0, values.size() - WINDOW_MONTHS * 2), Math.max(0, values.size() - WINDOW_MONTHS));
-
-        int recentOrders = recent.stream().mapToInt(CustomerMonthlyValue::documents).sum();
-        int previousOrders = previous.stream().mapToInt(CustomerMonthlyValue::documents).sum();
-        BigDecimal recentRevenue = sumRevenue(recent);
-        BigDecimal previousRevenue = sumRevenue(previous);
-        BigDecimal orderChange = percentage(recentOrders, previousOrders);
-        BigDecimal revenueChange = percentage(recentRevenue, previousRevenue);
-        BigDecimal recentQuantity = sumQuantity(recent);
-        BigDecimal quantityChange = percentage(recentQuantity, sumQuantity(previous));
-        CustomerTrendStatus status = status(orderChange, previous.size());
-        CustomerTrendSummary summary = new CustomerTrendSummary(status, recentOrders, previousOrders,
-                orderChange, recentRevenue, revenueChange, recentQuantity, quantityChange,
-                narrative.describe(previous.size() < WINDOW_MONTHS ? null : orderChange,
-                        revenueChange, quantityChange));
+        CustomerTrendStatus status = status(rolling.orderChangePercentage());
+        CustomerTrendSummary summary = new CustomerTrendSummary(status, rolling, annual,
+                narrative.describe(rolling, annual));
         return new CustomerTrendData(summary, points(values));
+    }
+
+    public CustomerTrendComparison compare(CustomerTrendPeriod period, CustomerPeriodTotals current,
+                                           CustomerPeriodTotals previous,
+                                           SalesDataCoverage coverage,
+                                           boolean annual) {
+        boolean complete = !coverage.from().isAfter(period.previousFrom())
+                && !coverage.through().isBefore(period.through());
+        boolean preliminary = annual && (period.through().isBefore(period.from().plusMonths(3))
+                || current.orders() < 3 || previous.orders() < 3);
+        return new CustomerTrendComparison(period, current, previous,
+                complete ? percentage(current.revenue(), previous.revenue()) : null,
+                complete ? percentage(current.quantity(), previous.quantity()) : null,
+                complete ? percentage(current.orders(), previous.orders()) : null,
+                complete, preliminary);
     }
 
     private List<CustomerTrendPoint> points(List<CustomerMonthlyValue> values) {
@@ -51,18 +53,6 @@ public final class CustomerTrendCalculator {
         return List.copyOf(points);
     }
 
-    private List<CustomerMonthlyValue> tail(List<CustomerMonthlyValue> values, int size) {
-        return values.subList(Math.max(0, values.size() - size), values.size());
-    }
-
-    private BigDecimal sumQuantity(List<CustomerMonthlyValue> values) {
-        return values.stream().map(CustomerMonthlyValue::quantity).reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
-
-    private BigDecimal sumRevenue(List<CustomerMonthlyValue> values) {
-        return values.stream().map(CustomerMonthlyValue::revenue).reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
-
     private BigDecimal percentage(int current, int previous) {
         return percentage(BigDecimal.valueOf(current), BigDecimal.valueOf(previous));
     }
@@ -73,8 +63,8 @@ public final class CustomerTrendCalculator {
                 .divide(previous, 1, RoundingMode.HALF_UP);
     }
 
-    private CustomerTrendStatus status(BigDecimal change, int previousMonths) {
-        if (change == null || previousMonths < WINDOW_MONTHS) return CustomerTrendStatus.INSUFFICIENT_DATA;
+    private CustomerTrendStatus status(BigDecimal change) {
+        if (change == null) return CustomerTrendStatus.INSUFFICIENT_DATA;
         if (CustomerTrendDirection.forOrders(change) == CustomerTrendDirection.UP) return CustomerTrendStatus.GROWING;
         if (change.compareTo(BigDecimal.valueOf(-20)) <= 0) return CustomerTrendStatus.DECLINING;
         if (CustomerTrendDirection.forOrders(change) == CustomerTrendDirection.DOWN) return CustomerTrendStatus.SLOWING;

@@ -4,6 +4,7 @@ import com.orodent.statistiche.features.sales.projection.model.*;
 
 import com.orodent.statistiche.features.sales.analysis.model.*;
 import com.orodent.statistiche.core.components.ChartPointTooltip;
+import com.orodent.statistiche.core.components.ContentSizedTabPane;
 import com.orodent.statistiche.features.sales.analysis.view.AnalysisView;
 import com.orodent.statistiche.features.sales.customers.model.*;
 import javafx.beans.property.SimpleStringProperty;
@@ -36,7 +37,7 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
     private final StackedBarChart<String, Number> yearlyChart = new StackedBarChart<>(new CategoryAxis(), new NumberAxis());
     private final TableView<CustomerProductItem> products = new TableView<>();
     private final ProgressIndicator detailLoading = new ProgressIndicator();
-    private final TabPane detailTabs = new TabPane();
+    private final TabPane detailTabs = new ContentSizedTabPane();
     private final CustomerTrendPane trendPane = new CustomerTrendPane();
     private final Label projectionNote = new Label();
     private Consumer<CustomerAnalysisItem> selected = item -> { };
@@ -104,7 +105,8 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
         detailTabs.getTabs().setAll(new Tab("Trend recente", trendPane), new Tab("Storico annuale", yearlyContent),
                 new Tab("Andamento mensile", monthlyPane), new Tab("Prodotti", products));
         detailTabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
-        detailTabs.setPrefHeight(390);
+        detailTabs.setPrefHeight(Region.USE_COMPUTED_SIZE);
+        detailTabs.setMinHeight(Region.USE_PREF_SIZE);
         detailTabs.getStyleClass().add("customer-detail-tabs");
         detailTabs.setVisible(false);
         detailTabs.setManaged(false);

@@ -34,6 +34,19 @@ public final class CustomerMonthlySeriesNormalizer {
         return List.copyOf(normalized);
     }
 
+    /** Trend charts extend to the common reference month, including months without purchases. */
+    public List<CustomerMonthlyValue> fillThroughMonth(List<CustomerMonthlyValue> values, YearMonth through) {
+        Map<YearMonth, CustomerMonthlyValue> byMonth = new HashMap<>();
+        for (CustomerMonthlyValue value : values) {
+            byMonth.put(YearMonth.of(value.year(), value.month()), value);
+        }
+        List<CustomerMonthlyValue> result = new ArrayList<>();
+        for (YearMonth month = through.minusMonths(23); !month.isAfter(through); month = month.plusMonths(1)) {
+            result.add(byMonth.getOrDefault(month, zero(month.getYear(), month.getMonthValue())));
+        }
+        return List.copyOf(result);
+    }
+
     private CustomerMonthlyValue zero(int year, int month) {
         return new CustomerMonthlyValue(year, month, BigDecimal.ZERO, BigDecimal.ZERO, 0);
     }

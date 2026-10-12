@@ -11,6 +11,7 @@ import com.orodent.statistiche.features.sales.customers.repository.CustomerAnaly
 import com.orodent.statistiche.features.sales.customers.repository.CustomerAnalysisRepositoryImpl;
 import com.orodent.statistiche.features.sales.customers.service.CustomerMonthlySeriesNormalizer;
 import com.orodent.statistiche.features.sales.customers.service.CustomerTrendCalculator;
+import com.orodent.statistiche.features.sales.customers.service.CustomerTrendPeriodResolver;
 import com.orodent.statistiche.features.sales.projection.service.RevenueProjectionCalculator;
 
 import java.sql.Connection;
@@ -28,6 +29,7 @@ public final class SalesAnalysisService {
     private final Function<Connection, SalesAnalysisRepository> repositoryFactory;
     private final Function<Connection, CustomerAnalysisRepository> customerRepositoryFactory;
     private final CustomerMonthlySeriesNormalizer monthlySeriesNormalizer = new CustomerMonthlySeriesNormalizer();
+    private final CustomerTrendPeriodResolver trendPeriodResolver = new CustomerTrendPeriodResolver();
     private final CustomerTrendCalculator customerTrendCalculator = new CustomerTrendCalculator();
     private final RevenueProjectionCalculator projectionCalculator = new RevenueProjectionCalculator();
 
@@ -84,19 +86,25 @@ public final class SalesAnalysisService {
                     base.averageDocumentValue(), base.averageDocumentQuantity(), averageFrequency, typicalFrequency,
                     base.firstPurchase(), base.lastPurchase(), Math.max(recency, 0));
             int fromYear = Math.max(year - previousYears, 0);
-            int trendFromYear = Math.max(year - 2, 0);
+            SalesDataCoverage coverage = repository.loadDataCoverage();
+            java.time.LocalDate trendReference = trendPeriodResolver.referenceDate(year, coverage, java.time.LocalDate.now());
+            int trendFromYear = Math.max(trendReference.getYear() - 2, 0);
             List<CustomerYearSummary> yearly = repository.loadYearlyHistory(customerCode);
-            List<CustomerMonthlyValue> trendMonths = monthlySeriesNormalizer.fillMissingMonths(
-                    repository.loadMonthlyHistory(customerCode, trendFromYear, year), trendFromYear, year);
+            List<CustomerMonthlyValue> trendMonths = monthlySeriesNormalizer.fillThroughMonth(
+                    repository.loadMonthlyHistory(customerCode, trendFromYear, year), java.time.YearMonth.from(trendReference));
+            CustomerTrendComparison rolling = loadTrendComparison(repository, customerCode,
+                    trendPeriodResolver.rolling(trendReference), coverage, false);
+            CustomerTrendComparison annual = loadTrendComparison(repository, customerCode,
+                    trendPeriodResolver.annual(trendReference), coverage, true);
             int historyFromYear = yearly.isEmpty() ? year : yearly.getFirst().year();
             RevenueProjection projection = projectionCalculator.calculate(year, detail.revenue(),
-                    repository.loadDataCoverage(),
+                    coverage,
                     repository.loadDailyRevenueHistory(customerCode, historyFromYear, year),
                     year == java.time.Year.now().getValue());
             return new CustomerDetailData(detail, yearly,
                     monthlySeriesNormalizer.fillMissingMonths(
                             repository.loadMonthlyHistory(customerCode, fromYear, year), fromYear, year),
-                    repository.loadProducts(customerCode, year), customerTrendCalculator.calculate(trendMonths),
+                    repository.loadProducts(customerCode, year), customerTrendCalculator.calculate(trendMonths, rolling, annual),
                     projection);
         }), executor);
     }
@@ -110,6 +118,15 @@ public final class SalesAnalysisService {
                     .loadMonthlyHistory(customerCode, fromYear, year);
             return monthlySeriesNormalizer.fillMissingMonths(values, fromYear, year);
         }), executor);
+    }
+
+    private CustomerTrendComparison loadTrendComparison(CustomerAnalysisRepository repository, String customerCode,
+                                                        CustomerTrendPeriod period, SalesDataCoverage coverage,
+                                                        boolean annual) {
+        return customerTrendCalculator.compare(period,
+                repository.loadPeriodTotals(customerCode, period.from(), period.through()),
+                repository.loadPeriodTotals(customerCode, period.previousFrom(), period.previousThrough()),
+                coverage, annual);
     }
 
     private java.math.BigDecimal averageFrequency(List<java.time.LocalDate> dates) {

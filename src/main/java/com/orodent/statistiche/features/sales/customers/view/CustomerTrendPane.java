@@ -9,12 +9,10 @@ import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 
-import java.math.BigDecimal;
 import java.text.NumberFormat;
 import java.time.Month;
 import java.time.format.TextStyle;
@@ -23,14 +21,12 @@ import java.util.List;
 import java.util.ArrayList;
 
 final class CustomerTrendPane extends VBox {
-    private final NumberFormat currency = NumberFormat.getCurrencyInstance(Locale.ITALY);
     private final List<ChartPointTooltip<String, Number>> pointTooltips = new ArrayList<>();
     private final Label status = new Label();
     private final Label explanation = new Label();
-    private final Label orders = new Label();
-    private final Label revenue = new Label();
-    private final Label revenueDirection = new Label();
-    private final Label quantityDirection = new Label();
+    private final Label chartTitle = new Label("Ordini mensili");
+    private final CustomerTrendComparisonPane rolling = new CustomerTrendComparisonPane("Ultimi 12 mesi completi");
+    private final CustomerTrendComparisonPane annual = new CustomerTrendComparisonPane("Anno a pari data");
     private final LineChart<String, Number> chart = new LineChart<>(new CategoryAxis(), new NumberAxis());
 
     CustomerTrendPane() {
@@ -42,24 +38,22 @@ final class CustomerTrendPane extends VBox {
         explanation.setMinWidth(0);
         explanation.setMaxWidth(Double.MAX_VALUE);
         explanation.setMinHeight(Region.USE_PREF_SIZE);
-        HBox indicators = new HBox(10, indicator("Ordini ultimi 12 mesi", orders),
-                indicator("Fatturato ultimi 12 mesi", revenue));
-        indicators.setAlignment(Pos.CENTER_LEFT);
+        annual.getStyleClass().add("customer-trend-annual-row");
+        VBox comparisons = new VBox(rolling, annual);
+        comparisons.getStyleClass().add("customer-trend-comparisons");
         chart.setAnimated(false);
         chart.setCreateSymbols(true);
         chart.setLegendVisible(false);
         chart.setPrefHeight(270);
+        chart.setMinHeight(Region.USE_PREF_SIZE);
         chart.getStyleClass().add("customer-trend-chart");
         VBox.setVgrow(chart, Priority.ALWAYS);
         HBox legend = new HBox(18, legendItem("Ordini mensili", "actual-orders"),
                 legendItem("Media mobile 3 mesi", "moving-average"));
         legend.setAlignment(Pos.CENTER_LEFT);
         legend.getStyleClass().add("customer-trend-legend");
-        FlowPane heading = new FlowPane(10, 6, status, revenueDirection, quantityDirection);
-        heading.setAlignment(Pos.CENTER_LEFT);
-        revenueDirection.getStyleClass().add("customer-trend-direction");
-        quantityDirection.getStyleClass().add("customer-trend-direction");
-        getChildren().addAll(heading, explanation, indicators, legend, chart);
+        chartTitle.getStyleClass().add("customer-trend-chart-title");
+        getChildren().addAll(status, comparisons, explanation, chartTitle, legend, chart);
     }
 
     void show(CustomerTrendData data) {
@@ -67,11 +61,12 @@ final class CustomerTrendPane extends VBox {
         status.setText(summary.status().label());
         status.getStyleClass().removeIf(style -> style.startsWith("trend-status-"));
         status.getStyleClass().add("trend-status-" + summary.status().name().toLowerCase(Locale.ROOT).replace('_', '-'));
-        updateDirection(revenueDirection, "fatturato", summary.revenueChangePercentage());
-        updateDirection(quantityDirection, "quantità", summary.quantityChangePercentage());
+        rolling.show(summary.rolling());
+        annual.show(summary.annual());
         explanation.setText(summary.explanation());
-        orders.setText(summary.recentOrders() + comparison(summary.orderChangePercentage()));
-        revenue.setText(currency.format(summary.recentRevenue()) + comparison(summary.revenueChangePercentage()));
+        var through = summary.annual().period().through();
+        chartTitle.setText("Ordini mensili" + (through.equals(java.time.YearMonth.from(through).atEndOfMonth())
+                ? "" : " · ultimo mese parziale"));
 
         pointTooltips.forEach(ChartPointTooltip::close);
         pointTooltips.clear();
@@ -101,40 +96,6 @@ final class CustomerTrendPane extends VBox {
         return format.format(value);
     }
 
-    private void updateDirection(Label label, String metric, BigDecimal percentage) {
-        label.getStyleClass().removeAll("metric-growing", "metric-stable", "metric-declining");
-        CustomerTrendDirection direction = CustomerTrendDirection.forValue(percentage);
-        if (direction == CustomerTrendDirection.UNAVAILABLE) {
-            label.setText("→ " + metric + " non confrontabile");
-            label.getStyleClass().add("metric-stable");
-            return;
-        }
-        String arrow = switch (direction) {
-            case UP -> "↗ ";
-            case DOWN -> "↘ ";
-            default -> "→ ";
-        };
-        String style = switch (direction) {
-            case UP -> "metric-growing";
-            case DOWN -> "metric-declining";
-            default -> "metric-stable";
-        };
-        String sign = percentage.signum() > 0 ? "+" : "";
-        label.setText(arrow + sign + percentage.stripTrailingZeros().toPlainString() + "% " + metric);
-        label.getStyleClass().add(style);
-    }
-
-    private VBox indicator(String title, Label value) {
-        Label heading = new Label(title);
-        heading.getStyleClass().add("muted-label");
-        value.getStyleClass().add("customer-trend-value");
-        VBox card = new VBox(5, heading, value);
-        card.getStyleClass().add("customer-trend-indicator");
-        HBox.setHgrow(card, Priority.ALWAYS);
-        card.setMaxWidth(Double.MAX_VALUE);
-        return card;
-    }
-
     private HBox legendItem(String text, String seriesStyle) {
         Region line = new Region();
         line.getStyleClass().addAll("customer-trend-legend-line", seriesStyle);
@@ -145,9 +106,4 @@ final class CustomerTrendPane extends VBox {
         return item;
     }
 
-    private String comparison(BigDecimal percentage) {
-        if (percentage == null) return " · confronto non disponibile";
-        String sign = percentage.signum() > 0 ? "+" : "";
-        return " · " + sign + percentage.stripTrailingZeros().toPlainString() + "%";
-    }
 }

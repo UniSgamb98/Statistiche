@@ -1,10 +1,49 @@
 package com.orodent.statistiche.features.sales.customers.service;
 
 import com.orodent.statistiche.features.sales.customers.model.CustomerTrendDirection;
+import com.orodent.statistiche.features.sales.customers.model.CustomerTrendComparison;
 
 import java.math.BigDecimal;
 
 public final class CustomerTrendNarrative {
+    public String describe(CustomerTrendComparison rolling, CustomerTrendComparison annual) {
+        if (annual.preliminary()) {
+            return "Sui 12 mesi: " + describe(rolling.orderChangePercentage(),
+                    rolling.revenueChangePercentage(), rolling.quantityChangePercentage())
+                    + " Il confronto annuale è preliminare: il periodo è breve o contiene pochi ordini.";
+        }
+        return "Il fatturato " + describePeriods(rolling.revenueChangePercentage(), annual.revenueChangePercentage())
+                + "; la quantità " + describePeriods(rolling.quantityChangePercentage(), annual.quantityChangePercentage()) + ".";
+    }
+
+    private String describePeriods(BigDecimal rollingChange, BigDecimal annualChange) {
+        CustomerTrendDirection rolling = CustomerTrendDirection.forValue(rollingChange);
+        CustomerTrendDirection annual = CustomerTrendDirection.forValue(annualChange);
+        if (rolling == CustomerTrendDirection.UNAVAILABLE && annual == CustomerTrendDirection.UNAVAILABLE) {
+            return "non è confrontabile: storico incompleto o valore precedente nullo";
+        }
+        if (rolling == CustomerTrendDirection.UNAVAILABLE) {
+            return directionText(annual) + " nell’anno a pari data; il confronto sui 12 mesi non è disponibile";
+        }
+        if (annual == CustomerTrendDirection.UNAVAILABLE) {
+            return directionText(rolling) + " sui 12 mesi; il confronto annuale non è disponibile";
+        }
+        if (rolling == annual) {
+            return directionText(rolling) + " sia sui 12 mesi sia nell’anno a pari data";
+        }
+        return directionText(rolling) + " sui 12 mesi, ma " + directionText(annual)
+                + " nell’anno a pari data";
+    }
+
+    private String directionText(CustomerTrendDirection direction) {
+        return switch (direction) {
+            case UP -> "cresce";
+            case DOWN -> "cala";
+            case STABLE -> "rimane stabile";
+            case UNAVAILABLE -> throw new IllegalArgumentException("Direzione non disponibile");
+        };
+    }
+
     public String describe(BigDecimal orderChange, BigDecimal revenueChange, BigDecimal quantityChange) {
         CustomerTrendDirection orders = CustomerTrendDirection.forOrders(orderChange);
         CustomerTrendDirection revenue = CustomerTrendDirection.forValue(revenueChange);
