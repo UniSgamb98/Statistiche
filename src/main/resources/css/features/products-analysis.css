@@ -70,3 +70,13 @@
 .products-analysis-page .table-row-cell:selected { -fx-background-color: #dff0f4; }
 .products-analysis-page .table-row-cell:selected .table-cell { -fx-text-fill: #173f5f; }
 .products-analysis-page .table-cell { -fx-border-color: transparent transparent #edf2f7 transparent; }
+
+.product-monthly-chart .chart-legend {
+    -fx-background-color: transparent;
+    -fx-padding: 10px 6px 4px 6px;
+}
+.product-monthly-chart .chart-legend-item {
+    -fx-text-fill: #334155;
+    -fx-font-size: 13px;
+    -fx-padding: 2px 10px;
+}
