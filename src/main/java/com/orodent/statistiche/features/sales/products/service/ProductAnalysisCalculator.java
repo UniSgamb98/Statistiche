@@ -56,7 +56,7 @@ public final class ProductAnalysisCalculator {
                         .thenComparing(ProductCustomerValue::code)).toList();
         Map<ProductVariantDimension, List<ProductVariantValue>> variants = new EnumMap<>(ProductVariantDimension.class);
         for (ProductVariantDimension dimension : ProductVariantDimension.values()) {
-            if (dimension == ProductVariantDimension.COLOR && (!summary.key().family().colored() || !summary.key().color().isEmpty())) continue;
+            if (!dimension.availableFor(summary.key())) continue;
             variants.put(dimension, group(current, sale -> dimension.value(attributes.get(sale.code()).orElseThrow())).entrySet().stream()
                     .map(entry -> new ProductVariantValue(entry.getKey(), totals.total(entry.getValue()))).toList());
         }

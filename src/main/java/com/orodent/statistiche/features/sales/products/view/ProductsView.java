@@ -125,7 +125,7 @@ public final class ProductsView extends AnalysisView<ProductGroupSummary> {
             sort();
             ProductGroupSummary choice = table.getItems().stream().filter(value -> value.key().equals(preferred)).findFirst().orElse(null);
             if (choice == null && preferred != null) choice = table.getItems().stream()
-                    .filter(value -> value.key().material().equals(preferred.material()) && value.key().family() == preferred.family()).findFirst().orElse(null);
+                    .filter(value -> value.key().relatedTo(preferred)).findFirst().orElse(null);
             if (choice == null && !table.getItems().isEmpty()) choice = table.getItems().getFirst();
             if (choice != null) table.getSelectionModel().select(choice);
         } finally { updating = false; }

@@ -43,7 +43,8 @@ final class ProductDetailPane extends VBox {
     void show(ProductDetailData data) {
         var group = data.group();
         title.setText(group.key().label());
-        subtitle.setText("Diametri e altezze aggregati · " + (group.key().family().colored()
+        subtitle.setText(group.key().allFamilies() ? "Tutte le famiglie, i colori, i diametri e le altezze"
+                : "Diametri e altezze aggregati · " + (group.key().family().colored()
                 ? group.key().color().isEmpty() ? "Tutti i colori" : "Colore " + group.key().color() : "Colore non previsto"));
         metrics.getChildren().setAll(metric("Quantità netta", formats.number(group.current().quantity())),
                 metric("Fatturato netto", formats.money(group.current().revenue())),

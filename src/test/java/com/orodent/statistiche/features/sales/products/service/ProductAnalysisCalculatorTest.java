@@ -79,6 +79,32 @@ class ProductAnalysisCalculatorTest {
         assertNull(totals.change(BigDecimal.TEN,BigDecimal.ONE.negate(),true));
         assertNull(ProductTotalsCalculator.share(BigDecimal.TEN,BigDecimal.ZERO));
     }
+    @Test void materialGroupingCombinesAllClassifiedFamiliesAndKeepsUnrelatedProductsSeparate() {
+        var data = snapshot(sales());
+        var page = calculator.overview(data, ProductGrouping.MATERIAL);
+        assertEquals(2, page.groups().size());
+        var zr = page.groups().stream().filter(g -> g.key().material().equals("ZR")).findFirst().orElseThrow();
+        assertEquals("ZR", zr.key().label());
+        assertTrue(zr.key().allFamilies());
+        assertEquals(BigDecimal.valueOf(600), zr.current().revenue());
+        assertEquals(BigDecimal.valueOf(60), zr.current().quantity());
+        assertEquals(2, zr.current().customers());
+        assertEquals(2, zr.current().orders());
+        assertEquals(BigDecimal.valueOf(500), page.unclassifiedTotals().revenue());
+        assertEquals(calculator.overview(data, ProductGrouping.FAMILY).classifiedTotals(), page.classifiedTotals());
+        var detail = calculator.detail(data, zr);
+        assertEquals(3, detail.variants().get(ProductVariantDimension.FAMILY).size());
+        assertTrue(detail.variants().get(ProductVariantDimension.COLOR).stream().anyMatch(v -> v.variant().equals("Non previsto")));
+        assertEquals(BigDecimal.valueOf(600), detail.customers().stream().map(c -> c.totals().revenue()).reduce(BigDecimal.ZERO,BigDecimal::add));
+        for (var variants : detail.variants().values()) {
+            assertEquals(BigDecimal.valueOf(60), variants.stream().map(v -> v.totals().quantity()).reduce(BigDecimal.ZERO,BigDecimal::add));
+        }
+        var family = calculator.overview(data, ProductGrouping.FAMILY).groups().getFirst().key();
+        assertTrue(zr.key().relatedTo(family));
+        assertTrue(family.relatedTo(zr.key()));
+        assertFalse(zr.key().relatedTo(page.groups().stream().filter(g -> g.key().material().equals("ZS")).findFirst().orElseThrow().key()));
+    }
+
     @Test void anEmptyArchiveHasEmptyRankingsAndZeroTotals() {
         var page = calculator.overview(snapshot(List.of()), ProductGrouping.FAMILY);
         assertTrue(page.groups().isEmpty()); assertTrue(page.unclassified().isEmpty());

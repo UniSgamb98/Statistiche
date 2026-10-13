@@ -14,7 +14,10 @@ Struttura riconosciuta: materia prima `ZR`/`ZS`, diametro `95`/`98`, altezza
 - `A35` viene visualizzato come `A3.5`; il codice originale non viene riscritto.
 - I prefissi sovrapposti (MS/MST, T/T4) vengono riconosciuti senza ambiguità.
 
-Raggruppamenti: materia prima + famiglia; oppure materia prima + famiglia + colore.
+Raggruppamenti: materia prima + famiglia; materia prima + famiglia + colore; oppure
+soltanto materia prima (tutte le famiglie ZR insieme e tutte le famiglie ZS insieme).
+Nel raggruppamento per materia prima, Varianti permette anche la ripartizione per
+famiglia e include un gruppo “Non previsto” per i prodotti senza colore.
 Altezza e diametro sono sempre aggregati nella classifica, ma rimangono consultabili
 nelle varianti. T con colore e T senza colore restano famiglie distinte.
 
