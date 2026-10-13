@@ -8,6 +8,7 @@ public interface AppNavigator {
 
     void showCustomerImport();
     void showCustomers();
+    default void showCustomer(String code, int year) { showCustomers(); }
     void showProducts();
     void showDiscounts();
     void showReturns();

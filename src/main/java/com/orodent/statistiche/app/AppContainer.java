@@ -6,6 +6,7 @@ import com.orodent.statistiche.core.database.service.VenditeCsvImportService;
 import com.orodent.statistiche.core.database.service.ClientiCsvImportService;
 import com.orodent.statistiche.features.sales.dashboard.service.SalesDashboardService;
 import com.orodent.statistiche.features.sales.analysis.service.SalesAnalysisService;
+import com.orodent.statistiche.features.sales.products.service.ProductAnalysisService;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -25,6 +26,7 @@ public final class AppContainer implements ApplicationInitializer {
     private final SalesDashboardService salesDashboardService;
     private final ClientiCsvImportService clientiCsvImportService;
     private final SalesAnalysisService salesAnalysisService;
+    private final ProductAnalysisService productAnalysisService;
 
     public AppContainer() {
         database = new Database();
@@ -39,6 +41,7 @@ public final class AppContainer implements ApplicationInitializer {
         clientiCsvImportService = new ClientiCsvImportService(database, importExecutor);
         salesDashboardService = new SalesDashboardService(database, backgroundExecutor);
         salesAnalysisService = new SalesAnalysisService(database, backgroundExecutor);
+        productAnalysisService = new ProductAnalysisService(database, backgroundExecutor);
     }
 
     public Executor backgroundExecutor() {
@@ -59,6 +62,8 @@ public final class AppContainer implements ApplicationInitializer {
 
     public ClientiCsvImportService clientiCsvImportService() { return clientiCsvImportService; }
     public SalesAnalysisService salesAnalysisService() { return salesAnalysisService; }
+
+    public ProductAnalysisService productAnalysisService() { return productAnalysisService; }
 
     @Override
     public void initialize() {

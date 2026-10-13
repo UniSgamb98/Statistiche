@@ -77,17 +77,22 @@ public final class AppController implements AppNavigator {
         stage.setTitle("Statistiche - Importa anagrafica clienti");
     }
 
-    @Override public void showCustomers() {
+    @Override public void showCustomers() { openCustomers(null, null); }
+
+    @Override public void showCustomer(String code, int year) { openCustomers(code, year); }
+
+    private void openCustomers(String code, Integer year) {
         CustomersView view = new CustomersView(); configureHeader(view.header());
         CustomersController controller = new CustomersController(view, app.salesAnalysisService());
         showView(view, controller::dispose, "/css/features/sales-dashboard.css", "/css/features/customers-analysis.css");
-        stage.setTitle("Statistiche - Clienti"); controller.loadInitialData();
+        stage.setTitle("Statistiche - Clienti");
+        if (code == null) controller.loadInitialData(); else controller.loadInitialData(code, year);
     }
 
     @Override public void showProducts() {
         ProductsView view = new ProductsView(); configureHeader(view.header());
-        ProductsController controller = new ProductsController(view, app.salesAnalysisService());
-        showView(view, controller::dispose, "/css/features/sales-dashboard.css");
+        ProductsController controller = new ProductsController(view, app.productAnalysisService(), this);
+        showView(view, controller::dispose, "/css/features/sales-dashboard.css", "/css/features/products-analysis.css");
         stage.setTitle("Statistiche - Prodotti"); controller.loadInitialData();
     }
 

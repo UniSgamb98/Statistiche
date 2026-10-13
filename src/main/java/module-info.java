@@ -21,4 +21,6 @@ module com.orodent.statistiche {
     exports com.orodent.statistiche.features.sales.dashboard.service;
     exports com.orodent.statistiche.features.sales.analysis.service;
     exports com.orodent.statistiche.features.sales.analysis.model;
+    exports com.orodent.statistiche.features.sales.products.model;
+    exports com.orodent.statistiche.features.sales.products.service;
 }

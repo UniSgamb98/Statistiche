@@ -49,6 +49,11 @@ public final class CustomersController {
 
     public void loadInitialData() { loadOverview(null); }
 
+    public void loadInitialData(String customerCode, int year) {
+        rememberedSelection = new CustomerSelection(customerCode, customerCode);
+        loadOverview(year);
+    }
+
     private void loadOverview(Integer year) {
         if (disposed || overviewLoad != null) return;
         detailLoad = null;
