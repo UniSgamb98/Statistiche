@@ -7,6 +7,7 @@ import com.orodent.statistiche.features.sales.dashboard.model.AnnualSalesCompari
 import com.orodent.statistiche.features.sales.dashboard.model.SalesDashboardData;
 import com.orodent.statistiche.features.sales.dashboard.model.SalesRankingItem;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.SimpleIntegerProperty;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -357,7 +358,9 @@ public final class SalesDashboardView extends BorderPane {
 
     private TableView<AnnualSalesComparison> createAnnualTable() {
         TableView<AnnualSalesComparison> table = new TableView<>();
-        TableColumn<AnnualSalesComparison, String> year = textColumn("Anno", item -> Integer.toString(item.year()));
+        TableColumn<AnnualSalesComparison, Integer> year = new TableColumn<>("Anno");
+        year.setCellValueFactory(item -> new SimpleIntegerProperty(item.getValue().year()).asObject());
+        year.setSortType(TableColumn.SortType.DESCENDING);
         TableColumn<AnnualSalesComparison, String> revenue = textColumn(
                 "Fatturato", item -> currency.format(item.summary().netRevenue())
         );
@@ -374,6 +377,7 @@ public final class SalesDashboardView extends BorderPane {
                 "Media doc.", item -> currency.format(item.summary().averageDocumentValue())
         );
         table.getColumns().addAll(year, revenue, change, quantity, customers, average);
+        table.getSortOrder().add(year);
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         table.setPrefHeight(310);
         table.setPlaceholder(new Label("Nessuno storico disponibile"));
@@ -472,6 +476,7 @@ public final class SalesDashboardView extends BorderPane {
     private void updateAnnualComparison(SalesDashboardData data) {
         annualComparisonPane.show(data.annualComparisons());
         annualTable.getItems().setAll(data.annualComparisons());
+        annualTable.sort();
     }
 
     private Label comparisonValue() {
