@@ -188,6 +188,48 @@ class SalesDashboardServiceTest {
         assertEquals(com.orodent.statistiche.features.sales.dashboard.model.DashboardProjections.empty(), service.load(year, null, null).join().projections());
     }
 
+    @Test
+    void monthlySeasonalityUsesArchiveCoverageInsteadOfCurrentYearCoverage() {
+        int year = Year.now().getValue();
+        FakeRepository repository = projectionRepository(year);
+        repository.coverageByYear = Map.of(year - 2, new SalesDataCoverage(
+                LocalDate.of(year - 2, 1, 1), LocalDate.of(year - 2, 12, 31)));
+        var history = new java.util.ArrayList<DailyRevenueValue>();
+        for (int historicalYear : List.of(year - 2, year - 1)) {
+            history.add(new DailyRevenueValue(LocalDate.of(historicalYear, 1, 1), new BigDecimal("50")));
+            history.add(new DailyRevenueValue(LocalDate.of(historicalYear, 1, 2), new BigDecimal("30")));
+            history.add(new DailyRevenueValue(LocalDate.of(historicalYear, 11, 1), new BigDecimal("10")));
+            history.add(new DailyRevenueValue(LocalDate.of(historicalYear, 12, 1), new BigDecimal("10")));
+        }
+        history.add(new DailyRevenueValue(LocalDate.of(year, 1, 1), new BigDecimal("60")));
+        repository.history = List.copyOf(history);
+        repository.quantityHistory = history.stream().map(value -> new DailyMetricValue(value.date(),
+                value.date().getYear() == year ? BigDecimal.TEN : value.revenue())).toList();
+        var data = new SalesDashboardService(connectionProvider(), Runnable::run, connection -> repository)
+                .load(year, null, null).join();
+        var revenue = data.monthlyProjections().revenue();
+        var quantity = data.monthlyProjections().quantity();
+        assertTrue(revenue.seasonal());
+        assertTrue(quantity.seasonal());
+        assertEquals(LocalDate.of(year, 1, 1), revenue.annual().dataFrom());
+        assertEquals(data.projections().revenue(), revenue.annual());
+        assertEquals(new BigDecimal("120.00"), revenue.annual().projectedAnnualValue());
+        assertEquals(new BigDecimal("36.00"), revenue.points().getFirst().remaining());
+        assertEquals(new BigDecimal("12.00"), revenue.points().get(10).remaining());
+        assertEquals(new BigDecimal("12.00"), revenue.points().getLast().remaining());
+        assertEquals(new BigDecimal("6.000"), quantity.points().getFirst().remaining());
+        for (var projection : List.of(revenue, quantity)) {
+            assertEquals(0, projection.points().stream().map(MonthlyProjection.Point::total)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add).compareTo(projection.annual().projectedAnnualValue()));
+        }
+        // One incomplete archive year leaves only one usable year: retain the explicit fallback.
+        repository.coverageByYear = Map.of(year - 2, new SalesDataCoverage(
+                LocalDate.of(year - 2, 1, 2), LocalDate.of(year - 2, 12, 31)));
+        var sparse = new SalesDashboardService(connectionProvider(), Runnable::run, connection -> repository)
+                .load(year, null, null).join();
+        assertTrue(!sparse.monthlyProjections().revenue().seasonal());
+    }
+
     private FakeRepository projectionRepository(int year) {
         FakeRepository repository = new FakeRepository();
         repository.years = List.of(year, year - 1, year - 2);
@@ -232,6 +274,7 @@ class SalesDashboardServiceTest {
         private int historyYear;
         private int historyLimit;
         private Optional<SalesDataCoverage> coverage = Optional.empty();
+        private Map<Integer, SalesDataCoverage> coverageByYear = Map.of();
         private List<DailyRevenueValue> history = List.of();
         private List<DailyMetricValue> quantityHistory = List.of();
         private List<DailyMetricValue> documentHistory = List.of();
@@ -246,7 +289,7 @@ class SalesDashboardServiceTest {
 
         @Override
         public Optional<SalesDataCoverage> loadDataCoverage(int year) {
-            return coverage;
+            return coverageByYear.containsKey(year) ? Optional.of(coverageByYear.get(year)) : coverage;
         }
 
         @Override

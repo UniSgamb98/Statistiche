@@ -23,6 +23,8 @@ final class DashboardProjectionService {
         if (coverage.isEmpty() || coverage.get().through().isAfter(LocalDate.now())
                 || coverage.get().through().equals(LocalDate.of(year, 12, 31))) return Result.empty();
         int fromYear = years.stream().min(Integer::compareTo).orElse(year);
+        LocalDate archiveFrom = repository.loadDataCoverage(fromYear)
+                .map(SalesDataCoverage::from).orElse(coverage.get().from());
         List<DailyMetricValue> quantityHistory = actual.quantity().signum() <= 0 ? List.of()
                 : repository.loadDailyQuantityHistory(fromYear, year);
         MetricProjection quantity = actual.quantity().signum() <= 0 ? null
@@ -36,8 +38,8 @@ final class DashboardProjectionService {
         MonthlyProjections monthlyProjections = new MonthlyProjections(
                 revenue == null ? null : monthly.calculate(annualProjections.revenue(),
                         repository.loadDailyRevenueHistory(fromYear, year).stream()
-                                .map(value -> new DailyMetricValue(value.date(), value.revenue())).toList()),
-                monthly.calculate(quantity, quantityHistory));
+                                .map(value -> new DailyMetricValue(value.date(), value.revenue())).toList(), archiveFrom),
+                monthly.calculate(quantity, quantityHistory, archiveFrom));
         return new Result(annualProjections, monthlyProjections);
     }
     record Result(DashboardProjections annual, MonthlyProjections monthly) {

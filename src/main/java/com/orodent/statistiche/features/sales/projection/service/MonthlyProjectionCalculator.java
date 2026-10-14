@@ -10,6 +10,11 @@ import java.util.*;
 /** Allocates an existing annual residual; never changes the annual estimate or past actuals. */
 public final class MonthlyProjectionCalculator {
     public MonthlyProjection calculate(MetricProjection annual, List<DailyMetricValue> history) {
+        return calculate(annual, history, annual == null ? null : annual.dataFrom());
+    }
+
+    /** Archive coverage is independent of the current-year coverage carried by the annual estimate. */
+    public MonthlyProjection calculate(MetricProjection annual, List<DailyMetricValue> history, LocalDate archiveFrom) {
         if (annual == null || annual.method() == ProjectionMethod.ACTUAL
                 || annual.dataThrough().getYear() != annual.year()
                 || annual.dataThrough().equals(LocalDate.of(annual.year(), 12, 31))) return null;
@@ -23,7 +28,7 @@ public final class MonthlyProjectionCalculator {
             LocalDate historicalCutoff = cutoff.equals(YearMonth.from(cutoff).atEndOfMonth())
                     ? YearMonth.of(entry.getKey(), first).atEndOfMonth() : cutoff.withYear(entry.getKey());
             // Incomplete archive years cannot describe a full seasonal tail.
-            if (annual.dataFrom().isAfter(LocalDate.of(entry.getKey(), 1, 1))) continue;
+            if (archiveFrom.isAfter(LocalDate.of(entry.getKey(), 1, 1))) continue;
             BigDecimal[] tail = zeros();
             entry.getValue().stream().filter(value -> value.date().isAfter(historicalCutoff))
                     .forEach(value -> tail[value.date().getMonthValue()] = tail[value.date().getMonthValue()].add(value.value()));
