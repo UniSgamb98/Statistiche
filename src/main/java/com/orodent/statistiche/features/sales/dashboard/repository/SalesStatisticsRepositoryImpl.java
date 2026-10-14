@@ -18,6 +18,7 @@ import java.util.Objects;
 import java.util.Optional;
 import com.orodent.statistiche.features.sales.dashboard.model.TopCustomerHistory;
 import com.orodent.statistiche.features.sales.projection.model.DailyRevenueValue;
+import com.orodent.statistiche.features.sales.projection.model.DailyMetricValue;
 import com.orodent.statistiche.features.sales.projection.model.SalesDataCoverage;
 
 public final class SalesStatisticsRepositoryImpl implements SalesStatisticsRepository {
@@ -118,6 +119,42 @@ public final class SalesStatisticsRepositoryImpl implements SalesStatisticsRepos
             }
         } catch (SQLException e) {
             throw new RepositoryException("Errore durante la lettura dello storico giornaliero vendite", e);
+        }
+    }
+
+    @Override
+    public List<DailyMetricValue> loadDailyQuantityHistory(int fromYear, int toYear) {
+        String sql = """
+                SELECT data_vendita giorno, SUM(%s) valore
+                FROM vendite_dettaglio WHERE YEAR(data_vendita) BETWEEN ? AND ?
+                GROUP BY data_vendita ORDER BY data_vendita
+                """.formatted(SIGNED_QUANTITY);
+        return loadDailyMetric(sql, fromYear, toYear);
+    }
+
+    @Override
+    public List<DailyMetricValue> loadDailyDocumentHistory(int fromYear, int toYear) {
+        // Assign each document once per year, even if its lines span several dates.
+        String sql = """
+                SELECT prima giorno, COUNT(*) valore FROM (
+                    SELECT YEAR(data_vendita) anno, documento_id, MIN(data_vendita) prima
+                    FROM vendite_dettaglio WHERE YEAR(data_vendita) BETWEEN ? AND ?
+                    GROUP BY YEAR(data_vendita), documento_id
+                ) documenti GROUP BY prima ORDER BY prima
+                """;
+        return loadDailyMetric(sql, fromYear, toYear);
+    }
+
+    private List<DailyMetricValue> loadDailyMetric(String sql, int fromYear, int toYear) {
+        try (PreparedStatement statement = conn.prepareStatement(sql)) {
+            statement.setInt(1, fromYear); statement.setInt(2, toYear);
+            try (ResultSet result = statement.executeQuery()) {
+                List<DailyMetricValue> values = new ArrayList<>();
+                while (result.next()) values.add(new DailyMetricValue(result.getDate("giorno").toLocalDate(), result.getBigDecimal("valore")));
+                return List.copyOf(values);
+            }
+        } catch (SQLException failure) {
+            throw new RepositoryException("Errore durante il caricamento dello storico per le proiezioni", failure);
         }
     }
 

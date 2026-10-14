@@ -9,6 +9,7 @@ import com.orodent.statistiche.features.sales.dashboard.model.TopCustomerHistory
 import java.util.List;
 import java.util.Optional;
 import com.orodent.statistiche.features.sales.projection.model.DailyRevenueValue;
+import com.orodent.statistiche.features.sales.projection.model.DailyMetricValue;
 import com.orodent.statistiche.features.sales.projection.model.SalesDataCoverage;
 
 public interface SalesStatisticsRepository {
@@ -20,6 +21,10 @@ public interface SalesStatisticsRepository {
     Optional<SalesDataCoverage> loadDataCoverage(int year);
 
     List<DailyRevenueValue> loadDailyRevenueHistory(int fromYear, int toYear);
+
+    List<DailyMetricValue> loadDailyQuantityHistory(int fromYear, int toYear);
+
+    List<DailyMetricValue> loadDailyDocumentHistory(int fromYear, int toYear);
 
     SalesSummary loadSummary(SalesFilter filter);
 

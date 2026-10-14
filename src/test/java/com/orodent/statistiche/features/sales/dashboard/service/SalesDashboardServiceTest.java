@@ -141,6 +141,47 @@ class SalesDashboardServiceTest {
         assertEquals("C1", result.topCustomerHistory().getFirst().customerCode());
     }
 
+    @Test
+    void wholeYearKpisUseIndependentForecastsAndReuseTheRevenueChartEstimate() {
+        int year = Year.now().getValue();
+        FakeRepository repository = projectionRepository(year);
+        repository.quantityHistory = List.of(
+                new DailyMetricValue(LocalDate.of(year - 2, 1, 1), new BigDecimal("8")),
+                new DailyMetricValue(LocalDate.of(year - 2, 12, 31), new BigDecimal("2")),
+                new DailyMetricValue(LocalDate.of(year - 1, 1, 1), new BigDecimal("8")),
+                new DailyMetricValue(LocalDate.of(year - 1, 12, 31), new BigDecimal("2")));
+        repository.documentHistory = List.of(
+                new DailyMetricValue(LocalDate.of(year - 2, 1, 1), BigDecimal.ONE),
+                new DailyMetricValue(LocalDate.of(year - 2, 12, 31), new BigDecimal("3")),
+                new DailyMetricValue(LocalDate.of(year - 1, 1, 1), BigDecimal.ONE),
+                new DailyMetricValue(LocalDate.of(year - 1, 12, 31), new BigDecimal("3")));
+        SalesDashboardService service = new SalesDashboardService(connectionProvider(), Runnable::run, connection -> repository);
+        var data = service.load(year, null, null).join();
+        assertEquals(new BigDecimal("120.00"), data.projections().revenue().projectedAnnualValue());
+        assertEquals(data.annualComparisons().getLast().projection().projectedAnnualRevenue(), data.projections().revenue().projectedAnnualValue());
+        assertEquals(new BigDecimal("12.500"), data.projections().quantity().projectedAnnualValue());
+        assertEquals(new BigDecimal("8"), data.projections().documents().projectedAnnualValue());
+        assertEquals(new BigDecimal("60"), data.summary().netRevenue());
+        assertEquals(2, data.summary().documents());
+        var filtered = service.load(year, LocalDate.of(year, 3, 1), LocalDate.of(year, 3, 31)).join();
+        assertNull(filtered.projections().revenue());
+        assertNull(filtered.projections().quantity());
+        assertNull(filtered.projections().documents());
+        assertNull(service.load(year - 1, null, null).join().projections().documents());
+    }
+
+    @Test
+    void kpiProjectionIsUnavailableForFutureCoverageAndForNonpositiveMeasures() {
+        int year = Year.now().getValue();
+        FakeRepository repository = projectionRepository(year);
+        SalesDashboardService service = new SalesDashboardService(connectionProvider(), Runnable::run, connection -> repository);
+        repository.coverage = Optional.of(new SalesDataCoverage(LocalDate.of(year, 1, 1), LocalDate.now().plusDays(1)));
+        assertEquals(com.orodent.statistiche.features.sales.dashboard.model.DashboardProjections.empty(), service.load(year, null, null).join().projections());
+        repository.coverage = Optional.of(new SalesDataCoverage(LocalDate.of(year, 1, 1), LocalDate.of(year, 1, 1)));
+        repository.annualSummaries = Map.of(year, new SalesSummary(new BigDecimal("-1"), new BigDecimal("-2"), 1, 0, BigDecimal.ZERO));
+        assertEquals(com.orodent.statistiche.features.sales.dashboard.model.DashboardProjections.empty(), service.load(year, null, null).join().projections());
+    }
+
     private FakeRepository projectionRepository(int year) {
         FakeRepository repository = new FakeRepository();
         repository.years = List.of(year, year - 1, year - 2);
@@ -186,6 +227,8 @@ class SalesDashboardServiceTest {
         private int historyLimit;
         private Optional<SalesDataCoverage> coverage = Optional.empty();
         private List<DailyRevenueValue> history = List.of();
+        private List<DailyMetricValue> quantityHistory = List.of();
+        private List<DailyMetricValue> documentHistory = List.of();
         private Map<Integer, SalesSummary> annualSummaries = Map.of();
 
         @Override
@@ -204,6 +247,9 @@ class SalesDashboardServiceTest {
         public List<DailyRevenueValue> loadDailyRevenueHistory(int fromYear, int toYear) {
             return history;
         }
+
+        @Override public List<DailyMetricValue> loadDailyQuantityHistory(int fromYear, int toYear) { return quantityHistory; }
+        @Override public List<DailyMetricValue> loadDailyDocumentHistory(int fromYear, int toYear) { return documentHistory; }
 
         @Override
         public List<Integer> findAvailableYears() {

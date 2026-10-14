@@ -71,18 +71,21 @@ public record SalesDashboardService(ConnectionProvider connectionProvider, Execu
                     repository.loadTopProducts(filter, RANKING_LIMIT),
                     summary.netRevenue()
             );
+            List<AnnualSalesComparison> annual = loadAnnualComparisons(repository, years);
+            var projections = new DashboardProjectionService().load(repository, selectedYear, filter, summary, annual, years);
             return new SalesDashboardData(
                     years,
                     selectedYear,
                     filter,
                     summary,
                     previousSummary,
-                    loadAnnualComparisons(repository, years),
+                    annual,
                     repository.loadMonthlySales(filter),
                     previousMonthly,
                     customers,
                     products,
-                    repository.loadTopCustomerHistory(selectedYear, HISTORY_CUSTOMER_LIMIT)
+                    repository.loadTopCustomerHistory(selectedYear, HISTORY_CUSTOMER_LIMIT),
+                    projections
             );
         });
     }

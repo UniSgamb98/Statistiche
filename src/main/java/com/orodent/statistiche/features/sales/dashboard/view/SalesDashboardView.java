@@ -23,7 +23,11 @@ import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.control.Tooltip;
+import com.orodent.statistiche.features.sales.projection.model.MetricProjection;
+import com.orodent.statistiche.features.sales.projection.model.ProjectionMethod;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -159,17 +163,17 @@ public final class SalesDashboardView extends BorderPane {
         customersValue.setText(number.format(data.summary().customers()));
         documentsValue.setText(number.format(data.summary().documents()));
         averageValue.setText(currency.format(data.summary().averageDocumentValue()));
-        updateComparison(revenueChange, data.summary().netRevenue(), data.previousSummary().netRevenue(), data.selectedYear());
-        updateComparison(quantityChange, data.summary().quantity(), data.previousSummary().quantity(), data.selectedYear());
+        updateMetricComparison(revenueChange, data.summary().netRevenue(), data.previousSummary().netRevenue(), data.selectedYear(), data.projections().revenue(), true);
+        updateMetricComparison(quantityChange, data.summary().quantity(), data.previousSummary().quantity(), data.selectedYear(), data.projections().quantity(), false);
         updateComparison(customersChange,
                 BigDecimal.valueOf(data.summary().customers()),
                 BigDecimal.valueOf(data.previousSummary().customers()),
                 data.selectedYear()
         );
-        updateComparison(documentsChange,
+        updateMetricComparison(documentsChange,
                 BigDecimal.valueOf(data.summary().documents()),
                 BigDecimal.valueOf(data.previousSummary().documents()),
-                data.selectedYear()
+                data.selectedYear(), data.projections().documents(), false
         );
         topCustomersHistoryPane.show(data.selectedYear(), data.topCustomerHistory());
         updateAnnualComparison(data);
@@ -482,6 +486,7 @@ public final class SalesDashboardView extends BorderPane {
     private Label comparisonValue() {
         Label value = new Label("—");
         value.getStyleClass().add("metric-comparison");
+        value.setWrapText(true); value.setMinWidth(0); value.setMinHeight(Region.USE_PREF_SIZE);
         return value;
     }
 
@@ -493,7 +498,24 @@ public final class SalesDashboardView extends BorderPane {
         return arrow + formatPercentage(percentage) + " rispetto al " + (year - 1);
     }
 
+    private void updateMetricComparison(Label label, BigDecimal actual, BigDecimal previous, int year,
+                                        MetricProjection projection, boolean money) {
+        if (projection == null || projection.method() == ProjectionMethod.ACTUAL) {
+            updateComparison(label, actual, previous, year);
+            return;
+        }
+        updateComparison(label, projection.projectedAnnualValue(), previous, year);
+        label.setText(label.getText() + " · proiezione al 31/12");
+        java.util.function.Function<BigDecimal, String> format = value -> money ? currency.format(value) : number.format(value);
+        label.setTooltip(new Tooltip("Stima al 31/12: " + format.apply(projection.projectedAnnualValue())
+                + "\nRegistrato: " + format.apply(actual)
+                + "\nTotale " + (year - 1) + ": " + format.apply(previous)
+                + "\nMetodo: " + (projection.method() == ProjectionMethod.SEASONAL ? "stagionalità storica della misura" : "proporzione dei giorni trascorsi")
+                + "\nDati aggiornati al " + projection.dataThrough().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))));
+    }
+
     private void updateComparison(Label label, BigDecimal current, BigDecimal previous, int year) {
+        label.setTooltip(null);
         label.setText(formatChange(current, previous, year));
         label.getStyleClass().removeAll("comparison-positive", "comparison-negative", "comparison-neutral");
         String style = previous.signum() == 0 || current.compareTo(previous) == 0

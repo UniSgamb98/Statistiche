@@ -13,7 +13,8 @@ public record SalesDashboardData(
         List<MonthlySales> previousMonthlySales,
         List<SalesRankingItem> topCustomers,
         List<SalesRankingItem> topProducts,
-        List<TopCustomerHistory> topCustomerHistory
+        List<TopCustomerHistory> topCustomerHistory,
+        DashboardProjections projections
 ) {
     public SalesDashboardData {
         availableYears = List.copyOf(availableYears);
@@ -23,6 +24,15 @@ public record SalesDashboardData(
         topCustomers = List.copyOf(topCustomers);
         topProducts = List.copyOf(topProducts);
         topCustomerHistory = List.copyOf(topCustomerHistory);
+    }
+
+    public SalesDashboardData(List<Integer> availableYears, int selectedYear, SalesFilter filter,
+                              SalesSummary summary, SalesSummary previousSummary,
+                              List<AnnualSalesComparison> annualComparisons, List<MonthlySales> monthlySales,
+                              List<MonthlySales> previousMonthlySales, List<SalesRankingItem> topCustomers,
+                              List<SalesRankingItem> topProducts, List<TopCustomerHistory> topCustomerHistory) {
+        this(availableYears, selectedYear, filter, summary, previousSummary, annualComparisons,
+                monthlySales, previousMonthlySales, topCustomers, topProducts, topCustomerHistory, DashboardProjections.empty());
     }
 
     public boolean empty() {
