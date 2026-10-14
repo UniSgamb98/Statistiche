@@ -33,7 +33,8 @@ public final class ProductsView extends AnalysisView<ProductGroupSummary> {
         super("Analisi prodotti", "Famiglie, varianti e clienti acquirenti");
         getStyleClass().add("products-analysis-page");
         metrics.setVisible(false); metrics.setManaged(false);
-        grouping.getItems().setAll(ProductGrouping.values()); grouping.setValue(ProductGrouping.FAMILY);
+        grouping.getItems().setAll(ProductGrouping.MATERIAL, ProductGrouping.FAMILY, ProductGrouping.FAMILY_COLOR);
+        grouping.setValue(ProductGrouping.FAMILY);
         ranking.getItems().setAll(ProductRanking.values()); ranking.setValue(ProductRanking.QUANTITY);
         search.setPromptText("Famiglia o colore"); search.setPrefWidth(190);
         refreshButton().setText("Ricarica dati");
