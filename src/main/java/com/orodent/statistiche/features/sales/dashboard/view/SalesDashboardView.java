@@ -23,11 +23,7 @@ import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
-import javafx.scene.control.Tooltip;
-import com.orodent.statistiche.features.sales.projection.model.MetricProjection;
-import com.orodent.statistiche.features.sales.projection.model.ProjectionMethod;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -59,15 +55,7 @@ public final class SalesDashboardView extends BorderPane {
     private final Label errorLabel = new Label();
     private final VBox emptyState = new VBox(12);
     private final VBox dashboard = new VBox(22);
-    private final Label revenueValue = metricValue();
-    private final Label quantityValue = metricValue();
-    private final Label customersValue = metricValue();
-    private final Label documentsValue = metricValue();
-    private final Label averageValue = metricValue();
-    private final Label revenueChange = comparisonValue();
-    private final Label quantityChange = comparisonValue();
-    private final Label customersChange = comparisonValue();
-    private final Label documentsChange = comparisonValue();
+    private final DashboardKpiPane kpiPane = new DashboardKpiPane();
     private final TopCustomersHistoryPane topCustomersHistoryPane = new TopCustomersHistoryPane();
     private final AnnualSalesComparisonPane annualComparisonPane = new AnnualSalesComparisonPane();
     private final TableView<AnnualSalesComparison> annualTable = createAnnualTable();
@@ -158,23 +146,7 @@ public final class SalesDashboardView extends BorderPane {
 
         emptyState.setVisible(false);
         emptyState.setManaged(false);
-        revenueValue.setText(currency.format(data.summary().netRevenue()));
-        quantityValue.setText(number.format(data.summary().quantity()));
-        customersValue.setText(number.format(data.summary().customers()));
-        documentsValue.setText(number.format(data.summary().documents()));
-        averageValue.setText(currency.format(data.summary().averageDocumentValue()));
-        updateMetricComparison(revenueChange, data.summary().netRevenue(), data.previousSummary().netRevenue(), data.selectedYear(), data.projections().revenue(), true);
-        updateMetricComparison(quantityChange, data.summary().quantity(), data.previousSummary().quantity(), data.selectedYear(), data.projections().quantity(), false);
-        updateComparison(customersChange,
-                BigDecimal.valueOf(data.summary().customers()),
-                BigDecimal.valueOf(data.previousSummary().customers()),
-                data.selectedYear()
-        );
-        updateMetricComparison(documentsChange,
-                BigDecimal.valueOf(data.summary().documents()),
-                BigDecimal.valueOf(data.previousSummary().documents()),
-                data.selectedYear(), data.projections().documents(), false
-        );
+        kpiPane.show(data);
         topCustomersHistoryPane.show(data.selectedYear(), data.topCustomerHistory());
         updateAnnualComparison(data);
         updateChart(data);
@@ -267,14 +239,6 @@ public final class SalesDashboardView extends BorderPane {
     }
 
     private void buildDashboard() {
-        HBox metrics = new HBox(14,
-                metricCard("Fatturato netto", revenueValue, revenueChange, "Valore medio documento", averageValue),
-                metricCard("Quantità", quantityValue, quantityChange),
-                metricCard("Clienti", customersValue, customersChange),
-                metricCard("Documenti", documentsValue, documentsChange)
-        );
-        metrics.getChildren().forEach(node -> HBox.setHgrow(node, Priority.ALWAYS));
-
         chartMetricBox.setItems(FXCollections.observableArrayList(ChartMetric.values()));
         chartMetricBox.setValue(ChartMetric.REVENUE);
         chartMetricBox.setOnAction(event -> updateChart(currentData));
@@ -304,33 +268,8 @@ public final class SalesDashboardView extends BorderPane {
                 new javafx.scene.layout.ColumnConstraints(0, 520, Double.MAX_VALUE, Priority.ALWAYS, null, true)
         );
 
-        dashboard.getChildren().addAll(metrics, history, chartCard,
+        dashboard.getChildren().addAll(kpiPane, history, chartCard,
                 card("Top 5 clienti — evoluzione storica", topCustomersHistoryPane), rankings);
-    }
-
-    private VBox metricCard(String title, Label value) {
-        VBox card = new VBox(7);
-        card.getStyleClass().add("dashboard-metric");
-        Label label = new Label(title);
-        label.getStyleClass().add("muted-label");
-        card.getChildren().addAll(label, value);
-        return card;
-    }
-
-    private VBox metricCard(String title, Label value, Label comparison) {
-        VBox card = metricCard(title, value);
-        card.getChildren().add(comparison);
-        return card;
-    }
-
-    private VBox metricCard(String title, Label value, Label comparison, String secondaryTitle, Label secondaryValue) {
-        VBox card = metricCard(title, value, comparison);
-        Label separator = new Label(secondaryTitle);
-        separator.getStyleClass().add("metric-secondary-label");
-        secondaryValue.getStyleClass().remove("dashboard-metric-value");
-        secondaryValue.getStyleClass().add("metric-secondary-value");
-        card.getChildren().addAll(separator, secondaryValue);
-        return card;
     }
 
     private VBox card(String title, javafx.scene.Node content) {
@@ -483,57 +422,10 @@ public final class SalesDashboardView extends BorderPane {
         annualTable.sort();
     }
 
-    private Label comparisonValue() {
-        Label value = new Label("—");
-        value.getStyleClass().add("metric-comparison");
-        value.setWrapText(true); value.setMinWidth(0); value.setMinHeight(Region.USE_PREF_SIZE);
-        return value;
-    }
-
-    private String formatChange(BigDecimal current, BigDecimal previous, int year) {
-        if (previous.signum() == 0) return "— nessun confronto disponibile";
-        BigDecimal percentage = current.subtract(previous).multiply(BigDecimal.valueOf(100))
-                .divide(previous.abs(), 1, java.math.RoundingMode.HALF_UP);
-        String arrow = percentage.signum() > 0 ? "▲ " : percentage.signum() < 0 ? "▼ " : "= ";
-        return arrow + formatPercentage(percentage) + " rispetto al " + (year - 1);
-    }
-
-    private void updateMetricComparison(Label label, BigDecimal actual, BigDecimal previous, int year,
-                                        MetricProjection projection, boolean money) {
-        if (projection == null || projection.method() == ProjectionMethod.ACTUAL) {
-            updateComparison(label, actual, previous, year);
-            return;
-        }
-        updateComparison(label, projection.projectedAnnualValue(), previous, year);
-        label.setText(label.getText() + " · proiezione al 31/12");
-        java.util.function.Function<BigDecimal, String> format = value -> money ? currency.format(value) : number.format(value);
-        label.setTooltip(new Tooltip("Stima al 31/12: " + format.apply(projection.projectedAnnualValue())
-                + "\nRegistrato: " + format.apply(actual)
-                + "\nTotale " + (year - 1) + ": " + format.apply(previous)
-                + "\nMetodo: " + (projection.method() == ProjectionMethod.SEASONAL ? "stagionalità storica della misura" : "proporzione dei giorni trascorsi")
-                + "\nDati aggiornati al " + projection.dataThrough().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))));
-    }
-
-    private void updateComparison(Label label, BigDecimal current, BigDecimal previous, int year) {
-        label.setTooltip(null);
-        label.setText(formatChange(current, previous, year));
-        label.getStyleClass().removeAll("comparison-positive", "comparison-negative", "comparison-neutral");
-        String style = previous.signum() == 0 || current.compareTo(previous) == 0
-                ? "comparison-neutral"
-                : current.compareTo(previous) > 0 ? "comparison-positive" : "comparison-negative";
-        label.getStyleClass().add(style);
-    }
-
     private String formatPercentage(BigDecimal percentage) {
         if (percentage == null) return "—";
         String prefix = percentage.signum() > 0 ? "+" : "";
         return prefix + number.format(percentage) + "%";
-    }
-
-    private Label metricValue() {
-        Label value = new Label("—");
-        value.getStyleClass().add("dashboard-metric-value");
-        return value;
     }
 
     private void setFiltersDisabled(boolean disabled) {

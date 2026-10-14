@@ -6,7 +6,10 @@ totale registrato dell'anno precedente. La dicitura “proiezione al 31/12” di
 questi confronti dai dati effettivi. Il tooltip mostra stima, valore registrato,
 base precedente, metodo e data di aggiornamento.
 
-I valori grandi dei KPI e il valore medio documento restano consuntivi. Il confronto
+I valori registrati restano visibili; le schede Fatturato, Quantità e Documenti
+mostrano accanto anche la proiezione al 31/12, sotto il valore registrato nelle
+finestre strette. Il valore medio documento resta consuntivo e ha un proprio
+confronto con il valore medio registrato nel periodo equivalente dell’anno precedente. Il confronto
 Clienti resta basato sui clienti distinti registrati; non viene estrapolato.
 Per anni conclusi, periodi personalizzati o stime non disponibili si usano i
 confronti ordinari. Il passaggio fra modalità rimuove anche i tooltip precedenti.
@@ -31,3 +34,7 @@ future non producono nuove stime. La previsione non scende sotto il valore regis
 `DashboardProjectionService` decide quando caricare e applicare le previsioni KPI;
 il repository legge gli storici. La view presenta i confronti e i tooltip, senza
 calcolare la stagionalità.
+
+La sezione KPI è separata dalla view principale: `DashboardKpiPane` coordina le
+schede, `DashboardMetricCard` gestisce valori e disposizione responsive, e
+`DashboardComparisonLabel` presenta variazioni e tooltip con uno stile comune.
