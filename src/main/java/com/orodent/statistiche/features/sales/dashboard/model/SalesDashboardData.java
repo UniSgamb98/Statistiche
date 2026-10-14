@@ -1,6 +1,7 @@
 package com.orodent.statistiche.features.sales.dashboard.model;
 
 import java.util.List;
+import com.orodent.statistiche.features.sales.projection.model.MonthlyProjections;
 
 public record SalesDashboardData(
         List<Integer> availableYears,
@@ -14,7 +15,8 @@ public record SalesDashboardData(
         List<SalesRankingItem> topCustomers,
         List<SalesRankingItem> topProducts,
         List<TopCustomerHistory> topCustomerHistory,
-        DashboardProjections projections
+        DashboardProjections projections,
+        MonthlyProjections monthlyProjections
 ) {
     public SalesDashboardData {
         availableYears = List.copyOf(availableYears);
@@ -37,5 +39,14 @@ public record SalesDashboardData(
 
     public boolean empty() {
         return summary.documents() == 0;
+    }
+    public SalesDashboardData(List<Integer> availableYears, int selectedYear, SalesFilter filter,
+                              SalesSummary summary, SalesSummary previousSummary,
+                              List<AnnualSalesComparison> annualComparisons, List<MonthlySales> monthlySales,
+                              List<MonthlySales> previousMonthlySales, List<SalesRankingItem> topCustomers,
+                              List<SalesRankingItem> topProducts, List<TopCustomerHistory> topCustomerHistory,
+                              DashboardProjections projections) {
+        this(availableYears, selectedYear, filter, summary, previousSummary, annualComparisons,
+                monthlySales, previousMonthlySales, topCustomers, topProducts, topCustomerHistory, projections, MonthlyProjections.empty());
     }
 }

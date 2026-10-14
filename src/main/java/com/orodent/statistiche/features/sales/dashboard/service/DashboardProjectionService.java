@@ -4,30 +4,43 @@ import com.orodent.statistiche.features.sales.dashboard.model.*;
 import com.orodent.statistiche.features.sales.dashboard.repository.SalesStatisticsRepository;
 import com.orodent.statistiche.features.sales.projection.model.*;
 import com.orodent.statistiche.features.sales.projection.service.SeasonalProjectionCalculator;
+import com.orodent.statistiche.features.sales.projection.service.MonthlyProjectionCalculator;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.Objects;
 
-/** Coordinates per-measure forecasts only for the current whole-year KPI comparisons. */
+/** Coordinates per-measure forecasts only for the current whole-year KPIs and monthly chart. */
 final class DashboardProjectionService {
-    DashboardProjections load(SalesStatisticsRepository repository, int year, SalesFilter filter,
+    Result load(SalesStatisticsRepository repository, int year, SalesFilter filter,
                               SalesSummary actual, List<AnnualSalesComparison> annual, List<Integer> years) {
-        if (year != LocalDate.now().getYear() || !filter.equals(SalesFilter.wholeYear(year))) return DashboardProjections.empty();
+        if (year != LocalDate.now().getYear() || !filter.equals(SalesFilter.wholeYear(year))) return Result.empty();
         RevenueProjection revenue = annual.stream().filter(value -> value.year() == year)
                 .map(AnnualSalesComparison::projection).filter(Objects::nonNull).findFirst().orElse(null);
         var coverage = revenue == null ? repository.loadDataCoverage(year)
                 : Optional.of(new SalesDataCoverage(revenue.dataFrom(), revenue.dataThrough()));
         if (coverage.isEmpty() || coverage.get().through().isAfter(LocalDate.now())
-                || coverage.get().through().equals(LocalDate.of(year, 12, 31))) return DashboardProjections.empty();
+                || coverage.get().through().equals(LocalDate.of(year, 12, 31))) return Result.empty();
         int fromYear = years.stream().min(Integer::compareTo).orElse(year);
+        List<DailyMetricValue> quantityHistory = actual.quantity().signum() <= 0 ? List.of()
+                : repository.loadDailyQuantityHistory(fromYear, year);
         MetricProjection quantity = actual.quantity().signum() <= 0 ? null
                 : new SeasonalProjectionCalculator(3).calculate(year, actual.quantity(), coverage.get(),
-                        repository.loadDailyQuantityHistory(fromYear, year), true);
+                        quantityHistory, true);
         MetricProjection documents = actual.documents() <= 0 ? null
                 : new SeasonalProjectionCalculator(0).calculate(year, BigDecimal.valueOf(actual.documents()), coverage.get(),
                         repository.loadDailyDocumentHistory(fromYear, year), true);
-        return new DashboardProjections(MetricProjection.fromRevenue(revenue), quantity, documents);
+        DashboardProjections annualProjections = new DashboardProjections(MetricProjection.fromRevenue(revenue), quantity, documents);
+        MonthlyProjectionCalculator monthly = new MonthlyProjectionCalculator();
+        MonthlyProjections monthlyProjections = new MonthlyProjections(
+                revenue == null ? null : monthly.calculate(annualProjections.revenue(),
+                        repository.loadDailyRevenueHistory(fromYear, year).stream()
+                                .map(value -> new DailyMetricValue(value.date(), value.revenue())).toList()),
+                monthly.calculate(quantity, quantityHistory));
+        return new Result(annualProjections, monthlyProjections);
+    }
+    record Result(DashboardProjections annual, MonthlyProjections monthly) {
+        static Result empty() { return new Result(DashboardProjections.empty(), MonthlyProjections.empty()); }
     }
 }

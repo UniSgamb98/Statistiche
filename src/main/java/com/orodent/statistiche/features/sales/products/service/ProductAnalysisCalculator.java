@@ -60,7 +60,8 @@ public final class ProductAnalysisCalculator {
             variants.put(dimension, group(current, sale -> dimension.value(attributes.get(sale.code()).orElseThrow())).entrySet().stream()
                     .map(entry -> new ProductVariantValue(entry.getKey(), totals.total(entry.getValue()))).toList());
         }
-        return new ProductDetailData(summary, snapshot, monthly, customers, variants);
+        return new ProductDetailData(summary, snapshot, monthly, customers, variants,
+                new ProductProjectionService().calculate(snapshot, summary, history));
     }
 
     private ProductGroupSummary summary(ProductSalesSnapshot snapshot, ProductGroupKey key,

@@ -163,6 +163,7 @@ class SalesAnalysisServiceTest {
         public SalesDataCoverage loadDataCoverage() {
             return new SalesDataCoverage(java.time.LocalDate.of(2020, 1, 1), java.time.LocalDate.of(2025, 12, 31));
         }
+        public List<com.orodent.statistiche.features.sales.projection.model.DailyMetricValue> loadDailyQuantityHistory(String code, int fromYear, int toYear) { return List.of(); }
         public List<DailyRevenueValue> loadDailyRevenueHistory(String code, int fromYear, int toYear) {
             return List.of();
         }

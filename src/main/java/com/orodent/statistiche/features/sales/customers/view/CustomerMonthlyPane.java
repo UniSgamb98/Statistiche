@@ -2,6 +2,8 @@ package com.orodent.statistiche.features.sales.customers.view;
 
 import com.orodent.statistiche.features.sales.customers.model.CustomerMonthlyValue;
 import com.orodent.statistiche.core.components.ChartPointTooltip;
+import com.orodent.statistiche.features.sales.projection.view.MonthlyForecastLayer;
+import com.orodent.statistiche.features.sales.projection.model.MonthlyProjections;
 import javafx.collections.FXCollections;
 import javafx.geometry.Pos;
 import javafx.geometry.Side;
@@ -31,6 +33,8 @@ import java.util.TreeMap;
 
 /** Owns the monthly chart, its display metric and comparison controls. */
 final class CustomerMonthlyPane extends VBox {
+    private final MonthlyForecastLayer forecast = new MonthlyForecastLayer();
+    private MonthlyProjections projections = MonthlyProjections.empty();
     private final ComboBox<Integer> comparisonYears = new ComboBox<>();
     private final ComboBox<Metric> metric = new ComboBox<>();
     private final NumberAxis valueAxis = new NumberAxis();
@@ -52,7 +56,7 @@ final class CustomerMonthlyPane extends VBox {
         Label metricLabel = new Label("Mostra:");
         metricLabel.setLabelFor(metric);
         FlowPane controls = new FlowPane(8, 8, new Label("Mostra l'anno corrente e:"),
-                comparisonYears, new Label("anni precedenti"), loading, metricLabel, metric);
+                comparisonYears, new Label("anni precedenti"), loading, metricLabel, metric, forecast.toggle());
         controls.setAlignment(Pos.CENTER_LEFT);
         controls.getStyleClass().add("customer-comparison-bar");
         loading.setMaxSize(28, 28);
@@ -72,7 +76,7 @@ final class CustomerMonthlyPane extends VBox {
         chart.setPrefHeight(260);
         chart.getStyleClass().add("customer-monthly-chart");
         VBox.setVgrow(chart, Priority.ALWAYS);
-        getChildren().addAll(controls, error, chart);
+        getChildren().addAll(controls, error, chart, forecast.note());
         updateMetric();
     }
 
@@ -89,13 +93,30 @@ final class CustomerMonthlyPane extends VBox {
         setLoading(true);
     }
 
+    void showProjections(MonthlyProjections projections) {
+        this.projections = projections;
+    }
+
     void showHistory(List<CustomerMonthlyValue> values) {
+        forecast.close();
         pointTooltips.forEach(ChartPointTooltip::close);
         pointTooltips.clear();
         history.clear();
         values.stream().map(CustomerMonthlyValue::year).distinct().forEach(year ->
                 history.put(year, values.stream().filter(value -> value.year() == year)
                         .sorted(Comparator.comparingInt(CustomerMonthlyValue::month)).toList()));
+        var cutoff = projections.revenue() != null ? projections.revenue() : projections.quantity();
+        if (cutoff != null) {
+            int year = cutoff.annual().year();
+            List<CustomerMonthlyValue> existing = history.getOrDefault(year, List.of());
+            List<CustomerMonthlyValue> complete = new ArrayList<>();
+            for (int month = 1; month <= cutoff.annual().dataThrough().getMonthValue(); month++) {
+                final int index = month;
+                complete.add(existing.stream().filter(value -> value.month() == index).findFirst()
+                        .orElse(new CustomerMonthlyValue(year, month, BigDecimal.ZERO, BigDecimal.ZERO, 0)));
+            }
+            history.put(year, complete);
+        }
         chart.getData().clear();
         history.forEach((year, months) -> {
             XYChart.Series<String, Number> series = new XYChart.Series<>();
@@ -113,6 +134,7 @@ final class CustomerMonthlyPane extends VBox {
             });
             chart.getData().add(series);
         });
+        refreshForecast();
         setErrorVisible(false);
         setLoading(false);
     }
@@ -134,6 +156,7 @@ final class CustomerMonthlyPane extends VBox {
             @Override public String toString(Number value) { return format.format(value); }
             @Override public Number fromString(String value) { throw new UnsupportedOperationException(); }
         });
+        forecast.close();
         // Update values in place to preserve each year's series and color.
         for (XYChart.Series<String, Number> series : chart.getData()) {
             List<CustomerMonthlyValue> months = history.get(Integer.parseInt(series.getName()));
@@ -141,6 +164,11 @@ final class CustomerMonthlyPane extends VBox {
                 series.getData().get(index).setYValue(selected.value(months.get(index)));
             }
         }
+        refreshForecast();
+    }
+
+    private void refreshForecast() {
+        forecast.show(chart, metric.getValue() == Metric.REVENUE ? projections.revenue() : projections.quantity(), this::formatPointValue);
     }
 
     private String formatPointValue(Number value) {

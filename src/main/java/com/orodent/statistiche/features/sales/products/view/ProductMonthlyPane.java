@@ -1,6 +1,8 @@
 package com.orodent.statistiche.features.sales.products.view;
 
 import com.orodent.statistiche.core.components.ChartPointTooltip;
+import com.orodent.statistiche.features.sales.projection.view.MonthlyForecastLayer;
+import com.orodent.statistiche.features.sales.projection.model.MonthlyProjections;
 import com.orodent.statistiche.features.sales.products.model.*;
 import javafx.scene.chart.*;
 import javafx.scene.control.ComboBox;
@@ -14,6 +16,7 @@ import java.util.List;
 import java.util.Locale;
 
 final class ProductMonthlyPane extends VBox {
+    private final MonthlyForecastLayer forecast = new MonthlyForecastLayer();
     private final ProductFormats formats = new ProductFormats();
     private final ComboBox<ProductMetric> metric = new ComboBox<>();
     private final LineChart<String, Number> chart = new LineChart<>(new CategoryAxis(), new NumberAxis());
@@ -27,14 +30,14 @@ final class ProductMonthlyPane extends VBox {
         metric.getItems().setAll(ProductMetric.values()); metric.setValue(ProductMetric.QUANTITY);
         metric.valueProperty().addListener((observable, before, after) -> render());
         Label title = new Label("Andamento mensile"); title.getStyleClass().add("product-section-title");
-        HBox heading = new HBox(10, title, new Label("Mostra"), metric);
+        FlowPane heading = new FlowPane(10, 8, title, new Label("Mostra"), metric, forecast.toggle());
         chart.setAnimated(false); chart.setCreateSymbols(true); chart.setPrefHeight(300); chart.setMinHeight(280);
         chart.getStyleClass().add("product-monthly-chart");
         ((NumberAxis)chart.getYAxis()).setForceZeroInRange(true);
 
         insight.setWrapText(true); insight.setMinHeight(Region.USE_PREF_SIZE);
         insight.getStyleClass().add("product-insight");
-        getChildren().addAll(heading, chart, insight);
+        getChildren().addAll(heading, chart, forecast.note(), insight);
     }
 
     void show(ProductDetailData data) { this.data = data; render(); }
@@ -65,11 +68,13 @@ final class ProductMonthlyPane extends VBox {
                     + (selected == ProductMetric.REVENUE ? formats.money(selected.value(value.totals())) : formats.number(selected.value(value.totals())))));
         }
         chart.getData().setAll(current, previous);
+        forecast.show(chart, selected == ProductMetric.REVENUE ? data.monthlyProjections().revenue() : data.monthlyProjections().quantity(),
+                value -> selected == ProductMetric.REVENUE ? formats.money(value) : formats.number(value) + " unità");
         var group = data.group();
         String unit = "Valore medio netto per unità: " + formats.money(com.orodent.statistiche.features.sales.products.service.ProductTotalsCalculator.unitValue(group.current()))
                 + ". Può variare anche per il mix di altezze e diametri.";
         boolean partial = !data.snapshot().reference().equals(YearMonth.from(data.snapshot().reference()).atEndOfMonth());
         insight.setText(unit + (partial ? " Ultimo mese parziale, fino al " + data.snapshot().reference().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) + "." : ""));
     }
-    void dispose() { tooltips.forEach(ChartPointTooltip::close); tooltips.clear(); }
+    void dispose() { forecast.close(); tooltips.forEach(ChartPointTooltip::close); tooltips.clear(); }
 }

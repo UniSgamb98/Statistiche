@@ -99,6 +99,12 @@ class SalesDashboardServiceTest {
         assertEquals(new BigDecimal("60.00"), projection.projectedRemainingRevenue());
         assertEquals(wholeYear.annualComparisons().getLast().projection(), projection);
         assertNull(filtered.annualComparisons().getFirst().projection());
+        assertEquals(wholeYear.projections().revenue(), wholeYear.monthlyProjections().revenue().annual());
+        assertEquals(0, wholeYear.monthlyProjections().revenue().points().stream()
+                .map(MonthlyProjection.Point::remaining).reduce(BigDecimal.ZERO, BigDecimal::add)
+                .compareTo(projection.projectedRemainingRevenue()));
+        assertNull(filtered.monthlyProjections().revenue());
+        assertNull(filtered.monthlyProjections().quantity());
     }
 
     @Test

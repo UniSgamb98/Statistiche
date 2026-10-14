@@ -132,6 +132,23 @@ public final class CustomerAnalysisRepositoryImpl implements CustomerAnalysisRep
         } catch (SQLException e) { throw failure(e); }
     }
 
+    @Override public List<DailyMetricValue> loadDailyQuantityHistory(String code, int fromYear, int toYear) {
+        String sql = """
+                SELECT data_vendita, SUM(quantita) quantita FROM vendite_dettaglio
+                WHERE codice_cliente=? AND YEAR(data_vendita) BETWEEN ? AND ? AND tipo_operazione='VENDITA'
+                GROUP BY data_vendita ORDER BY data_vendita
+                """;
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, code); ps.setInt(2, fromYear); ps.setInt(3, toYear);
+            try (ResultSet rs = ps.executeQuery()) {
+                List<DailyMetricValue> values = new ArrayList<>();
+                while (rs.next()) values.add(new DailyMetricValue(
+                        rs.getDate("data_vendita").toLocalDate(), rs.getBigDecimal("quantita")));
+                return List.copyOf(values);
+            }
+        } catch (SQLException e) { throw failure(e); }
+    }
+
     private BigDecimal average(BigDecimal value,int count){return count==0?BigDecimal.ZERO:value.divide(BigDecimal.valueOf(count),2,java.math.RoundingMode.HALF_UP);}
     private RepositoryException failure(SQLException e){return new RepositoryException("Errore durante l'analisi del cliente",e);}
 }

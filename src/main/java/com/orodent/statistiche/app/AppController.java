@@ -128,7 +128,7 @@ public final class AppController implements AppNavigator {
             scene.setRoot(root);
         }
 
-        scene.getStylesheets().setAll(globalCss);
+        scene.getStylesheets().setAll(globalCss, Objects.requireNonNull(getClass().getResource("/css/components/monthly-forecast.css")).toExternalForm());
         for (String css : extraCss) {
             scene.getStylesheets().add(Objects.requireNonNull(
                     getClass().getResource(css),

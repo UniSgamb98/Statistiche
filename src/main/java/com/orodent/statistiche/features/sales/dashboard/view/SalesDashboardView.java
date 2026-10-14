@@ -2,12 +2,11 @@ package com.orodent.statistiche.features.sales.dashboard.view;
 
 import com.orodent.statistiche.core.components.AppHeader;
 import com.orodent.statistiche.core.components.ChartPointTooltip;
+import com.orodent.statistiche.features.sales.projection.view.MonthlyForecastLayer;
 import com.orodent.statistiche.features.sales.dashboard.model.MonthlySales;
-import com.orodent.statistiche.features.sales.dashboard.model.AnnualSalesComparison;
 import com.orodent.statistiche.features.sales.dashboard.model.SalesDashboardData;
 import com.orodent.statistiche.features.sales.dashboard.model.SalesRankingItem;
 import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.SimpleIntegerProperty;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -26,6 +25,7 @@ import javafx.scene.control.TableView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
@@ -58,9 +58,10 @@ public final class SalesDashboardView extends BorderPane {
     private final DashboardKpiPane kpiPane = new DashboardKpiPane();
     private final TopCustomersHistoryPane topCustomersHistoryPane = new TopCustomersHistoryPane();
     private final AnnualSalesComparisonPane annualComparisonPane = new AnnualSalesComparisonPane();
-    private final TableView<AnnualSalesComparison> annualTable = createAnnualTable();
+    private final AnnualSalesTable annualTable = new AnnualSalesTable();
     private final ComboBox<ChartMetric> chartMetricBox = new ComboBox<>();
     private final LineChart<String, Number> monthlyChart = createMonthlyChart();
+    private final MonthlyForecastLayer forecast = new MonthlyForecastLayer();
     private final TableView<SalesRankingItem> customersTable = createRankingTable(false);
     private final TableView<SalesRankingItem> productsTable = createRankingTable(true);
     private final NumberFormat currency = NumberFormat.getCurrencyInstance(Locale.ITALY);
@@ -242,7 +243,7 @@ public final class SalesDashboardView extends BorderPane {
         chartMetricBox.setItems(FXCollections.observableArrayList(ChartMetric.values()));
         chartMetricBox.setValue(ChartMetric.REVENUE);
         chartMetricBox.setOnAction(event -> updateChart(currentData));
-        HBox chartHeader = new HBox(12, new Label("Andamento mensile"), chartMetricBox);
+        FlowPane chartHeader = new FlowPane(12, 8, new Label("Andamento mensile"), chartMetricBox, forecast.toggle());
         chartHeader.setAlignment(Pos.CENTER_LEFT);
         chartHeader.getChildren().getFirst().getStyleClass().add("card-title");
         VBox historicalCard = card("Confronto storico automatico", annualComparisonPane);
@@ -257,6 +258,7 @@ public final class SalesDashboardView extends BorderPane {
         );
 
         VBox chartCard = card(chartHeader, monthlyChart);
+        chartCard.getChildren().add(forecast.note());
         GridPane rankings = new GridPane();
         rankings.setHgap(18);
         rankings.add(card("Top clienti", customersTable), 0, 0);
@@ -299,40 +301,6 @@ public final class SalesDashboardView extends BorderPane {
         return chart;
     }
 
-    private TableView<AnnualSalesComparison> createAnnualTable() {
-        TableView<AnnualSalesComparison> table = new TableView<>();
-        TableColumn<AnnualSalesComparison, Integer> year = new TableColumn<>("Anno");
-        year.setCellValueFactory(item -> new SimpleIntegerProperty(item.getValue().year()).asObject());
-        year.setSortType(TableColumn.SortType.DESCENDING);
-        TableColumn<AnnualSalesComparison, String> revenue = textColumn(
-                "Fatturato", item -> currency.format(item.summary().netRevenue())
-        );
-        TableColumn<AnnualSalesComparison, String> change = textColumn(
-                "Δ anno", item -> formatPercentage(item.revenueChangePercentage())
-        );
-        TableColumn<AnnualSalesComparison, String> quantity = textColumn(
-                "Quantità", item -> number.format(item.summary().quantity())
-        );
-        TableColumn<AnnualSalesComparison, String> customers = textColumn(
-                "Clienti", item -> number.format(item.summary().customers())
-        );
-        TableColumn<AnnualSalesComparison, String> average = textColumn(
-                "Media doc.", item -> currency.format(item.summary().averageDocumentValue())
-        );
-        table.getColumns().addAll(year, revenue, change, quantity, customers, average);
-        table.getSortOrder().add(year);
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-        table.setPrefHeight(310);
-        table.setPlaceholder(new Label("Nessuno storico disponibile"));
-        return table;
-    }
-
-    private <T> TableColumn<T, String> textColumn(String title, java.util.function.Function<T, String> value) {
-        TableColumn<T, String> column = new TableColumn<>(title);
-        column.setCellValueFactory(item -> new SimpleStringProperty(value.apply(item.getValue())));
-        return column;
-    }
-
     private TableView<SalesRankingItem> createRankingTable(boolean showDescription) {
         TableView<SalesRankingItem> table = new TableView<>();
         TableColumn<SalesRankingItem, String> code = new TableColumn<>(showDescription ? "Prodotto" : "Codice");
@@ -363,6 +331,7 @@ public final class SalesDashboardView extends BorderPane {
         if (data == null) {
             return;
         }
+        forecast.close();
         monthlyTooltips.forEach(ChartPointTooltip::close);
         monthlyTooltips.clear();
         ChartMetric metric = chartMetricBox.getValue() == null ? ChartMetric.REVENUE : chartMetricBox.getValue();
@@ -372,6 +341,12 @@ public final class SalesDashboardView extends BorderPane {
         previousSeries.setName(Integer.toString(data.selectedYear() - 1));
         int firstMonth = data.filter().from().getMonthValue();
         int lastMonth = data.filter().to().getMonthValue();
+        var monthlyProjection = metric == ChartMetric.REVENUE ? data.monthlyProjections().revenue() : data.monthlyProjections().quantity();
+        var cutoffProjection = data.monthlyProjections().revenue() != null ? data.monthlyProjections().revenue() : data.monthlyProjections().quantity();
+        int actualLastMonth = cutoffProjection == null ? lastMonth : cutoffProjection.annual().dataThrough().getMonthValue();
+        ((CategoryAxis) monthlyChart.getXAxis()).setAutoRanging(false);
+        ((CategoryAxis) monthlyChart.getXAxis()).getCategories().setAll(java.util.stream.IntStream.rangeClosed(firstMonth, lastMonth)
+                .mapToObj(value -> Month.of(value).getDisplayName(TextStyle.SHORT, Locale.ITALY)).toList());
         for (int monthNumber = firstMonth; monthNumber <= lastMonth; monthNumber++) {
             MonthlySales month = findMonth(data, monthNumber);
             Number value = metric.value(month);
@@ -382,7 +357,7 @@ public final class SalesDashboardView extends BorderPane {
                     () -> monthName
                             + " " + series.getName() + "\n" + metric.label() + ": "
                             + formatChartValue(metric, point.getYValue()), series.nameProperty()));
-            series.getData().add(point);
+            if (monthNumber <= actualLastMonth) series.getData().add(point);
             MonthlySales previousMonth = findMonth(data.previousMonthlySales(), monthNumber);
             XYChart.Data<String, Number> previousPoint = new XYChart.Data<>(label, metric.value(previousMonth));
             monthlyTooltips.add(new ChartPointTooltip<>(previousPoint,
@@ -395,6 +370,7 @@ public final class SalesDashboardView extends BorderPane {
         } else {
             monthlyChart.getData().setAll(series, previousSeries);
         }
+        forecast.show(monthlyChart, monthlyProjection, value -> formatChartValue(metric, value));
     }
 
     private String formatChartValue(ChartMetric metric, Number value) {
@@ -418,14 +394,7 @@ public final class SalesDashboardView extends BorderPane {
 
     private void updateAnnualComparison(SalesDashboardData data) {
         annualComparisonPane.show(data.annualComparisons());
-        annualTable.getItems().setAll(data.annualComparisons());
-        annualTable.sort();
-    }
-
-    private String formatPercentage(BigDecimal percentage) {
-        if (percentage == null) return "—";
-        String prefix = percentage.signum() > 0 ? "+" : "";
-        return prefix + number.format(percentage) + "%";
+        annualTable.show(data.annualComparisons());
     }
 
     private void setFiltersDisabled(boolean disabled) {

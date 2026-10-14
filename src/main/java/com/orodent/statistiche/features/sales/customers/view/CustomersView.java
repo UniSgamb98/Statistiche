@@ -225,6 +225,7 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
         trendPane.show(data.trend());
         updateYearly(data.yearly(), data.projection());
         updateProjectionNote(data.projection());
+        monthlyPane.showProjections(data.monthlyProjections());
         showMonthlyHistory(data.monthly());
         products.getItems().setAll(data.products());
         detailTabs.setVisible(true);

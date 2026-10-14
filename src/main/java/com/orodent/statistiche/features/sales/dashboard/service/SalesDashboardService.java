@@ -18,7 +18,7 @@ import java.time.Year;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Objects;
-import com.orodent.statistiche.features.sales.projection.model.RevenueProjection;
+import com.orodent.statistiche.features.sales.projection.model.*;
 import com.orodent.statistiche.features.sales.projection.model.DailyRevenueValue;
 import com.orodent.statistiche.features.sales.projection.service.RevenueProjectionCalculator;
 import java.util.concurrent.CompletableFuture;
@@ -85,7 +85,7 @@ public record SalesDashboardService(ConnectionProvider connectionProvider, Execu
                     customers,
                     products,
                     repository.loadTopCustomerHistory(selectedYear, HISTORY_CUSTOMER_LIMIT),
-                    projections
+                    projections.annual(), projections.monthly()
             );
         });
     }

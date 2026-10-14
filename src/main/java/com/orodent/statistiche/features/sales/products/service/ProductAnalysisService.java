@@ -42,7 +42,7 @@ public final class ProductAnalysisService {
             if (LocalDate.now(clock).isBefore(reference)) reference = LocalDate.now(clock);
             ProductSalesSnapshot snapshot = new ProductSalesSnapshot(years, year, reference,
                     coverage == null ? reference : coverage.from(),
-                    years.isEmpty() ? List.of() : repository.loadSales(LocalDate.of(year - 1, 1, 1), LocalDate.of(year, 12, 31)));
+                    years.isEmpty() ? List.of() : repository.loadSales(LocalDate.of(years.stream().min(Integer::compareTo).orElse(year), 1, 1), LocalDate.of(year, 12, 31)));
             return calculator.overview(snapshot, grouping);
         }), executor);
     }

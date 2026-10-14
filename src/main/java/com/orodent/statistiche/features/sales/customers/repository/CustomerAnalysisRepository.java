@@ -14,5 +14,6 @@ public interface CustomerAnalysisRepository {
     CustomerPeriodTotals loadPeriodTotals(String customerCode, LocalDate from, LocalDate through);
     List<CustomerProductItem> loadProducts(String customerCode, int year);
     SalesDataCoverage loadDataCoverage();
+    List<DailyMetricValue> loadDailyQuantityHistory(String customerCode, int fromYear, int toYear);
     List<DailyRevenueValue> loadDailyRevenueHistory(String customerCode, int fromYear, int toYear);
 }

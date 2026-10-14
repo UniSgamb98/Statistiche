@@ -22,12 +22,15 @@ class ProductAnalysisServiceTest {
         var page = service.load(null,ProductGrouping.FAMILY).join();
         assertEquals(2026,page.snapshot().year());
         assertEquals(LocalDate.of(2026,10,7),page.snapshot().reference());
-        assertEquals(LocalDate.of(2025,1,1),repository.from);
+        assertEquals(LocalDate.of(2020,1,1),repository.from);
         assertEquals(LocalDate.of(2026,12,31),repository.through);
         var regrouped = service.regroup(page.snapshot(),ProductGrouping.FAMILY_COLOR).join();
         assertEquals("A2",regrouped.groups().getFirst().key().color());
         assertEquals(page.classifiedTotals(),regrouped.classifiedTotals());
         assertEquals(1,service.detail(page.snapshot(),page.groups().getFirst()).join().customers().size());
+        var detail = service.detail(page.snapshot(), page.groups().getFirst()).join();
+        assertNotNull(detail.monthlyProjections().revenue());
+        assertNotNull(detail.monthlyProjections().quantity());
         assertEquals(1,repository.reads);
     }
     @Test void historicalYearsUseFullYearsAndTodayCapsFutureDatedData() {
@@ -47,7 +50,7 @@ class ProductAnalysisServiceTest {
     private static class FakeRepository implements ProductAnalysisRepository {
         int reads;
         LocalDate from, through;
-        List<Integer> years=List.of(2026,2025);
+        List<Integer> years=List.of(2026,2025,2024,2020);
         SalesDataCoverage coverage = new SalesDataCoverage(LocalDate.of(2020,1,1),LocalDate.of(2026,10,7));
         public List<Integer> findYears() { return years; }
         public SalesDataCoverage loadCoverage() { return coverage; }

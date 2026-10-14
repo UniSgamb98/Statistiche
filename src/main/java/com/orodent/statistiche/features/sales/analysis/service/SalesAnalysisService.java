@@ -13,6 +13,7 @@ import com.orodent.statistiche.features.sales.customers.service.CustomerMonthlyS
 import com.orodent.statistiche.features.sales.customers.service.CustomerTrendCalculator;
 import com.orodent.statistiche.features.sales.customers.service.CustomerTrendPeriodResolver;
 import com.orodent.statistiche.features.sales.projection.service.RevenueProjectionCalculator;
+import com.orodent.statistiche.features.sales.customers.service.CustomerProjectionService;
 
 import java.sql.Connection;
 import java.time.Year;
@@ -97,15 +98,18 @@ public final class SalesAnalysisService {
             CustomerTrendComparison annual = loadTrendComparison(repository, customerCode,
                     trendPeriodResolver.annual(trendReference), coverage, true);
             int historyFromYear = yearly.isEmpty() ? year : yearly.getFirst().year();
+            List<DailyRevenueValue> revenueHistory = repository.loadDailyRevenueHistory(customerCode, historyFromYear, year);
             RevenueProjection projection = projectionCalculator.calculate(year, detail.revenue(),
                     coverage,
-                    repository.loadDailyRevenueHistory(customerCode, historyFromYear, year),
+                    revenueHistory,
                     year == java.time.Year.now().getValue());
+            MonthlyProjections monthlyProjections = new CustomerProjectionService().load(repository, detail, year,
+                    historyFromYear, coverage, projection, revenueHistory);
             return new CustomerDetailData(detail, yearly,
                     monthlySeriesNormalizer.fillMissingMonths(
                             repository.loadMonthlyHistory(customerCode, fromYear, year), fromYear, year),
                     repository.loadProducts(customerCode, year), customerTrendCalculator.calculate(trendMonths, rolling, annual),
-                    projection);
+                    projection, monthlyProjections);
         }), executor);
     }
 
