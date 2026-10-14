@@ -177,6 +177,36 @@ class VenditaDettaglioCsvMapperTest {
         assertFalse(result.valid());
     }
 
+    @Test
+    void acceptsOptionalPercentSuffixWithoutChangingDiscountCalculations() {
+        String[][] examples = {
+                {"40%", "40"}, {" 40 % ", "40"}, {"40,5%", "40.5"},
+                {"40.5%", "40.5"}, {"+5%", "5"}, {"40%+10%", "46"},
+                {"40 + 10%", "46"}, {"40% + 10", "46"}, {"0%", "0"}, {"100%", "100"}
+        };
+        for (String[] example : examples) {
+            assertEquals(0, new BigDecimal(example[1]).compareTo(readAndMap(discountRow(example[0])).scontoPercentuale()), example[0]);
+        }
+        var plain = readAndMap(discountRow("40+10"));
+        var suffixed = readAndMap(discountRow("40%+10%"));
+        assertEquals(plain, suffixed);
+    }
+
+    @Test
+    void rejectsMalformedPercentExpressionsAndOutOfRangeComponents() {
+        for (String discount : new String[]{"%", "40%%", "%40", "4%0", "40%+", "40%++10%", "101%", "-1%", "40%+101%"}) {
+            CsvMappingException error = assertThrows(CsvMappingException.class,
+                    () -> readAndMap(discountRow(discount)), discount);
+            assertEquals(VenditaDettaglioCsvMapper.SCONTO, error.column());
+            assertEquals(discount, error.rawValue());
+        }
+    }
+
+    private String discountRow(String discount) {
+        return "01/10/2026;000976;MAGMOD;VEND;20ZR774;ZR9816MSTA2;"
+                + "Prodotto;N.;1;EUR;1;100;" + discount + ";46;54;54";
+    }
+
     private VenditaDettaglio readAndMap(String row) {
         return mapper.map(new CsvReader()
                 .read(new StringReader(HEADER + "\n" + row), CsvReadOptions.semicolonSeparated())
