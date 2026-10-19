@@ -2,7 +2,7 @@ package com.orodent.statistiche.features.sales.archive.view;
 
 import com.orodent.statistiche.features.sales.analysis.model.*;
 import com.orodent.statistiche.features.sales.analysis.view.AnalysisView;
-import javafx.beans.property.SimpleStringProperty;
+import static com.orodent.statistiche.core.components.TableColumns.*;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 
@@ -27,14 +27,14 @@ public final class SalesArchiveView extends AnalysisView<SalesArchiveItem> {
     public String searchText() { return search.getText(); }
 
     @Override protected void configureTable(TableView<SalesArchiveItem> table) {
-        table.getColumns().addAll(column("Data", item -> item.date().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))),
-                column("Documento", SalesArchiveItem::document), column("Cliente", SalesArchiveItem::customerName),
-                column("Codice cliente", SalesArchiveItem::customerCode), column("Prodotto", SalesArchiveItem::productCode),
-                column("Descrizione", SalesArchiveItem::productDescription),
-                column("Quantità", item -> number.format(item.quantity())),
-                column("Sconto", item -> number.format(item.discountPercentage()) + "%"),
-                column("Netto", item -> currency.format(item.netAmount())),
-                column("Operazione", item -> item.operation().name()));
+        table.getColumns().addAll(value("Data", SalesArchiveItem::date, date -> date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))),
+                text("Documento", SalesArchiveItem::document), text("Cliente", SalesArchiveItem::customerName),
+                text("Codice cliente", SalesArchiveItem::customerCode), text("Prodotto", SalesArchiveItem::productCode),
+                text("Descrizione", SalesArchiveItem::productDescription),
+                value("Quantità", item -> item.quantity(), amount -> number.format(amount)),
+                value("Sconto", SalesArchiveItem::discountPercentage, amount -> number.format(amount) + "%"),
+                value("Netto", SalesArchiveItem::netAmount, amount -> currency.format(amount)),
+                text("Operazione", item -> item.operation().name()));
     }
 
     @Override protected void updateSummary(AnalysisPageData<SalesArchiveItem> data) {
@@ -42,10 +42,4 @@ public final class SalesArchiveView extends AnalysisView<SalesArchiveItem> {
                 metric("Limite risultati", "500"));
     }
 
-    private TableColumn<SalesArchiveItem, String> column(String title,
-            java.util.function.Function<SalesArchiveItem, String> value) {
-        TableColumn<SalesArchiveItem, String> column = new TableColumn<>(title);
-        column.setCellValueFactory(item -> new SimpleStringProperty(value.apply(item.getValue())));
-        return column;
-    }
 }

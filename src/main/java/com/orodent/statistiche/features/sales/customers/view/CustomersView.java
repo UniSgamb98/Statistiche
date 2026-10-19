@@ -7,7 +7,7 @@ import com.orodent.statistiche.core.components.ChartPointTooltip;
 import com.orodent.statistiche.core.components.ContentSizedTabPane;
 import com.orodent.statistiche.features.sales.analysis.view.AnalysisView;
 import com.orodent.statistiche.features.sales.customers.model.*;
-import javafx.beans.property.SimpleStringProperty;
+import static com.orodent.statistiche.core.components.TableColumns.*;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.chart.*;
@@ -123,12 +123,12 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
     }
 
     @Override protected void configureTable(TableView<CustomerAnalysisItem> table) {
-        table.getColumns().addAll(column("Codice", CustomerAnalysisItem::code),
-                column("Ragione sociale", CustomerAnalysisItem::name),
-                column("Fatturato", item -> currency.format(item.revenue())),
-                column("Quantità", item -> number.format(item.quantity())),
-                column("Documenti", item -> number.format(item.documents())),
-                column("Ultima vendita", item -> item.lastSale().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))));
+        table.getColumns().addAll(text("Codice", CustomerAnalysisItem::code),
+                text("Ragione sociale", CustomerAnalysisItem::name),
+                value("Fatturato", item -> item.revenue(), amount -> currency.format(amount)),
+                value("Quantità", item -> item.quantity(), amount -> number.format(amount)),
+                value("Documenti", item -> item.documents(), amount -> number.format(amount)),
+                value("Ultima vendita", CustomerAnalysisItem::lastSale, date -> date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))));
     }
 
     public void showOverview(CustomerOverviewData overview) {
@@ -301,10 +301,10 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
     }
 
     private void configureProducts() {
-        products.getColumns().addAll(productColumn("Codice", CustomerProductItem::code),
-                productColumn("Descrizione", CustomerProductItem::description),
-                productColumn("Fatturato", item -> currency.format(item.revenue())),
-                productColumn("Quantità", item -> number.format(item.quantity())));
+        products.getColumns().addAll(text("Codice", CustomerProductItem::code),
+                text("Descrizione", CustomerProductItem::description),
+                value("Fatturato", item -> item.revenue(), amount -> currency.format(amount)),
+                value("Quantità", item -> item.quantity(), amount -> number.format(amount)));
         products.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
     }
 
@@ -314,12 +314,4 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
         if(value.agent()!=null)parts.add("Agente " + value.agent()); return parts.isEmpty()?"":" · "+String.join(" · ",parts);
     }
 
-    private TableColumn<CustomerAnalysisItem, String> column(String title, java.util.function.Function<CustomerAnalysisItem, String> value) {
-        TableColumn<CustomerAnalysisItem, String> column = new TableColumn<>(title);
-        column.setCellValueFactory(item -> new SimpleStringProperty(value.apply(item.getValue()))); return column;
-    }
-    private TableColumn<CustomerProductItem, String> productColumn(String title, java.util.function.Function<CustomerProductItem, String> value) {
-        TableColumn<CustomerProductItem, String> column = new TableColumn<>(title);
-        column.setCellValueFactory(item -> new SimpleStringProperty(value.apply(item.getValue()))); return column;
-    }
 }

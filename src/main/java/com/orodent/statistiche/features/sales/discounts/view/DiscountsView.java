@@ -2,8 +2,7 @@ package com.orodent.statistiche.features.sales.discounts.view;
 
 import com.orodent.statistiche.features.sales.analysis.model.*;
 import com.orodent.statistiche.features.sales.analysis.view.AnalysisView;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.scene.control.TableColumn;
+import static com.orodent.statistiche.core.components.TableColumns.*;
 import javafx.scene.control.TableView;
 
 import java.text.NumberFormat;
@@ -16,11 +15,11 @@ public final class DiscountsView extends AnalysisView<DiscountAnalysisItem> {
     public DiscountsView() { super("Analisi sconti", "Sconti concessi e incidenza per cliente"); }
 
     @Override protected void configureTable(TableView<DiscountAnalysisItem> table) {
-        table.getColumns().addAll(column("Codice", DiscountAnalysisItem::code),
-                column("Cliente", DiscountAnalysisItem::name),
-                column("Fatturato", item -> currency.format(item.revenue())),
-                column("Sconto concesso", item -> currency.format(item.discount())),
-                column("Sconto medio", item -> number.format(item.averagePercentage()) + "%"));
+        table.getColumns().addAll(text("Codice", DiscountAnalysisItem::code),
+                text("Cliente", DiscountAnalysisItem::name),
+                value("Fatturato", item -> item.revenue(), amount -> currency.format(amount)),
+                value("Sconto concesso", DiscountAnalysisItem::discount, amount -> currency.format(amount)),
+                value("Sconto medio", DiscountAnalysisItem::averagePercentage, amount -> number.format(amount) + "%"));
     }
 
     @Override protected void updateSummary(AnalysisPageData<DiscountAnalysisItem> data) {
@@ -30,10 +29,4 @@ public final class DiscountsView extends AnalysisView<DiscountAnalysisItem> {
                 metric("Documenti", number.format(data.summary().count())));
     }
 
-    private TableColumn<DiscountAnalysisItem, String> column(String title,
-            java.util.function.Function<DiscountAnalysisItem, String> value) {
-        TableColumn<DiscountAnalysisItem, String> column = new TableColumn<>(title);
-        column.setCellValueFactory(item -> new SimpleStringProperty(value.apply(item.getValue())));
-        return column;
-    }
 }

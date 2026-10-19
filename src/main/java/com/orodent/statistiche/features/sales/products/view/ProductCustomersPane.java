@@ -1,5 +1,6 @@
 package com.orodent.statistiche.features.sales.products.view;
 
+import com.orodent.statistiche.core.components.TableColumns;
 import com.orodent.statistiche.features.sales.products.model.*;
 import com.orodent.statistiche.features.sales.products.service.ProductTotalsCalculator;
 import javafx.scene.control.*;
@@ -24,10 +25,10 @@ final class ProductCustomersPane extends VBox {
         summary.setWrapText(true); summary.setMinHeight(Region.USE_PREF_SIZE); summary.getStyleClass().add("product-insight");
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         table.setPrefHeight(320); table.setPlaceholder(new Label("Nessun cliente nel periodo"));
-        table.getColumns().addAll(ProductTableColumns.text("Cliente", ProductCustomerValue::name),
-                ProductTableColumns.numeric("Quantità", value -> value.totals().quantity(), formats::number),
-                ProductTableColumns.numeric("Fatturato", value -> value.totals().revenue(), formats::money),
-                ProductTableColumns.numeric("Quota %", value -> share(value), formats::percent));
+        table.getColumns().addAll(TableColumns.text("Cliente", ProductCustomerValue::name),
+                TableColumns.numeric("Quantità", value -> value.totals().quantity(), formats::number),
+                TableColumns.numeric("Fatturato", value -> value.totals().revenue(), formats::money),
+                TableColumns.numeric("Quota %", value -> share(value), formats::percent));
         open.getStyleClass().add("secondary-button"); open.setDisable(true);
         open.setTooltip(new Tooltip("Seleziona un cliente con ordini di vendita per aprire la sua analisi."));
         table.getSelectionModel().selectedItemProperty().addListener((observable, before, after) -> open.setDisable(after == null || after.totals().orders() == 0));

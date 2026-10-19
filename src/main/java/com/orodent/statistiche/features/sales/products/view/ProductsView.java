@@ -1,5 +1,6 @@
 package com.orodent.statistiche.features.sales.products.view;
 
+import com.orodent.statistiche.core.components.TableColumns;
 import com.orodent.statistiche.features.sales.analysis.model.AnalysisPageData;
 import com.orodent.statistiche.features.sales.analysis.model.AnalysisSummary;
 import com.orodent.statistiche.features.sales.analysis.view.AnalysisView;
@@ -69,11 +70,11 @@ public final class ProductsView extends AnalysisView<ProductGroupSummary> {
     }
 
     @Override protected void configureTable(TableView<ProductGroupSummary> table) {
-        var name = ProductTableColumns.<ProductGroupSummary>text("Gruppo", value -> value.key().label()); name.setMinWidth(130);
-        quantityColumn = ProductTableColumns.numeric("Quantità", value -> value.current().quantity(), value -> formats.number(value)); quantityColumn.setMinWidth(85);
-        revenueColumn = ProductTableColumns.numeric("Fatturato", value -> value.current().revenue(), value -> formats.money(value)); revenueColumn.setMinWidth(105);
-        customersColumn = ProductTableColumns.numeric("Clienti", value -> BigDecimal.valueOf(value.current().customers()), value -> formats.number(value)); customersColumn.setMinWidth(55);
-        shareColumn = ProductTableColumns.numeric("Quota quantità %", value -> share(value), value -> formats.percent(value)); shareColumn.setMinWidth(65);
+        var name = TableColumns.<ProductGroupSummary>text("Gruppo", value -> value.key().label()); name.setMinWidth(130);
+        quantityColumn = TableColumns.numeric("Quantità", value -> value.current().quantity(), value -> formats.number(value)); quantityColumn.setMinWidth(85);
+        revenueColumn = TableColumns.numeric("Fatturato", value -> value.current().revenue(), value -> formats.money(value)); revenueColumn.setMinWidth(105);
+        customersColumn = TableColumns.numeric("Clienti", value -> BigDecimal.valueOf(value.current().customers()), value -> formats.number(value)); customersColumn.setMinWidth(55);
+        shareColumn = TableColumns.numeric("Quota quantità %", value -> share(value), value -> formats.percent(value)); shareColumn.setMinWidth(65);
         table.getColumns().addAll(name, quantityColumn, revenueColumn, customersColumn, shareColumn);
     }
 
@@ -167,9 +168,9 @@ public final class ProductsView extends AnalysisView<ProductGroupSummary> {
         other.setExpanded(false); other.setContent(otherTable); other.getStyleClass().add("product-unclassified");
         otherTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN); otherTable.setPrefHeight(180);
         otherTable.setPlaceholder(new Label("Nessun prodotto fuori classificazione"));
-        otherTable.getColumns().addAll(ProductTableColumns.text("Codice", UnclassifiedProduct::code),
-                ProductTableColumns.text("Descrizione", UnclassifiedProduct::description),
-                ProductTableColumns.numeric("Quantità", value -> value.totals().quantity(), formats::number),
-                ProductTableColumns.numeric("Fatturato", value -> value.totals().revenue(), formats::money));
+        otherTable.getColumns().addAll(TableColumns.text("Codice", UnclassifiedProduct::code),
+                TableColumns.text("Descrizione", UnclassifiedProduct::description),
+                TableColumns.numeric("Quantità", value -> value.totals().quantity(), formats::number),
+                TableColumns.numeric("Fatturato", value -> value.totals().revenue(), formats::money));
     }
 }

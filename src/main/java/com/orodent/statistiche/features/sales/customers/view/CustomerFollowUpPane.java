@@ -3,7 +3,7 @@ package com.orodent.statistiche.features.sales.customers.view;
 import com.orodent.statistiche.features.sales.analysis.model.CustomerAnalysisItem;
 import com.orodent.statistiche.features.sales.customers.model.*;
 import com.orodent.statistiche.features.sales.customers.service.CustomerFollowUpCalculator;
-import javafx.beans.property.ReadOnlyObjectWrapper;
+import com.orodent.statistiche.core.components.TableColumns;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
@@ -136,17 +136,9 @@ final class CustomerFollowUpPane extends VBox {
 
     private String days(BigDecimal value) { return value == null ? "—" : number.format(value) + " gg"; }
 
-    private <T> TableColumn<CustomerFollowUpItem, T> column(String title,
+    private <T extends Comparable<? super T>> TableColumn<CustomerFollowUpItem, T> column(String title,
             Function<CustomerFollowUpItem, T> value, Function<T, String> format) {
-        TableColumn<CustomerFollowUpItem, T> column = new TableColumn<>(title);
-        column.setCellValueFactory(cell -> new ReadOnlyObjectWrapper<>(value.apply(cell.getValue())));
-        column.setCellFactory(ignored -> new TableCell<>() {
-            @Override protected void updateItem(T value, boolean empty) {
-                super.updateItem(value, empty);
-                setText(empty ? null : format.apply(value));
-            }
-        });
-        return column;
+        return TableColumns.value(title, value, format);
     }
     private void visible(javafx.scene.Node node, boolean visible) { node.setVisible(visible); node.setManaged(visible); }
 }

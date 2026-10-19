@@ -6,7 +6,7 @@ import com.orodent.statistiche.features.sales.projection.view.MonthlyForecastLay
 import com.orodent.statistiche.features.sales.dashboard.model.MonthlySales;
 import com.orodent.statistiche.features.sales.dashboard.model.SalesDashboardData;
 import com.orodent.statistiche.features.sales.dashboard.model.SalesRankingItem;
-import javafx.beans.property.SimpleStringProperty;
+import static com.orodent.statistiche.core.components.TableColumns.*;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -20,7 +20,6 @@ import javafx.scene.control.DatePicker;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.GridPane;
@@ -303,24 +302,13 @@ public final class SalesDashboardView extends BorderPane {
 
     private TableView<SalesRankingItem> createRankingTable(boolean showDescription) {
         TableView<SalesRankingItem> table = new TableView<>();
-        TableColumn<SalesRankingItem, String> code = new TableColumn<>(showDescription ? "Prodotto" : "Codice");
-        code.setCellValueFactory(item -> new SimpleStringProperty(item.getValue().code()));
-        TableColumn<SalesRankingItem, String> description = new TableColumn<>(showDescription ? "Descrizione" : "Cliente");
-        description.setCellValueFactory(item -> new SimpleStringProperty(
-                item.getValue().description() == null ? "" : item.getValue().description()
-        ));
-        TableColumn<SalesRankingItem, String> revenue = new TableColumn<>("Fatturato");
-        revenue.setCellValueFactory(item -> new SimpleStringProperty(currency.format(item.getValue().netRevenue())));
-        TableColumn<SalesRankingItem, String> quantity = new TableColumn<>("Quantità");
-        quantity.setCellValueFactory(item -> new SimpleStringProperty(number.format(item.getValue().quantity())));
-        TableColumn<SalesRankingItem, String> documents = new TableColumn<>("Documenti");
-        documents.setCellValueFactory(item -> new SimpleStringProperty(number.format(item.getValue().documents())));
-        TableColumn<SalesRankingItem, String> percentage = new TableColumn<>("Incidenza");
-        percentage.setCellValueFactory(item -> new SimpleStringProperty(
-                number.format(item.getValue().percentage()) + "%"
-        ));
-        table.getColumns().addAll(code, description);
-        table.getColumns().addAll(revenue, quantity, documents, percentage);
+        table.getColumns().addAll(
+                text(showDescription ? "Prodotto" : "Codice", SalesRankingItem::code),
+                text(showDescription ? "Descrizione" : "Cliente", SalesRankingItem::description),
+                value("Fatturato", SalesRankingItem::netRevenue, amount -> currency.format(amount)),
+                value("Quantità", SalesRankingItem::quantity, amount -> number.format(amount)),
+                value("Documenti", SalesRankingItem::documents, amount -> number.format(amount)),
+                value("Incidenza", SalesRankingItem::percentage, amount -> number.format(amount) + "%"));
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         table.setPrefHeight(310);
         table.setPlaceholder(new Label("Nessun dato"));

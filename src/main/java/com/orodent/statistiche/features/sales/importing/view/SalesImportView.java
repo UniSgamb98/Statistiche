@@ -4,6 +4,7 @@ import com.orodent.statistiche.core.components.AppHeader;
 import com.orodent.statistiche.core.csv.CsvImportResult;
 import com.orodent.statistiche.core.database.service.VenditeImportReport;
 import javafx.beans.property.SimpleStringProperty;
+import com.orodent.statistiche.core.components.TableColumns;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -197,8 +198,7 @@ public final class SalesImportView extends BorderPane {
     }
 
     private void configureErrorTable() {
-        TableColumn<ImportErrorItem, String> lineColumn = new TableColumn<>("Riga");
-        lineColumn.setCellValueFactory(item -> new SimpleStringProperty(String.valueOf(item.getValue().lineNumber())));
+        var lineColumn = TableColumns.<ImportErrorItem, Integer>value("Riga", ImportErrorItem::lineNumber, String::valueOf);
         lineColumn.setPrefWidth(70);
 
         TableColumn<ImportErrorItem, String> fieldColumn = new TableColumn<>("Colonna");

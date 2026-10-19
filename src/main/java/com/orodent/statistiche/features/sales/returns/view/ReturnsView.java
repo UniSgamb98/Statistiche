@@ -2,8 +2,7 @@ package com.orodent.statistiche.features.sales.returns.view;
 
 import com.orodent.statistiche.features.sales.analysis.model.*;
 import com.orodent.statistiche.features.sales.analysis.view.AnalysisView;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.scene.control.TableColumn;
+import static com.orodent.statistiche.core.components.TableColumns.*;
 import javafx.scene.control.TableView;
 
 import java.text.NumberFormat;
@@ -16,11 +15,11 @@ public final class ReturnsView extends AnalysisView<ReturnAnalysisItem> {
     public ReturnsView() { super("Resi e note di credito", "Valore e quantità delle rettifiche per cliente"); }
 
     @Override protected void configureTable(TableView<ReturnAnalysisItem> table) {
-        table.getColumns().addAll(column("Codice", ReturnAnalysisItem::code),
-                column("Cliente", ReturnAnalysisItem::name),
-                column("Importo", item -> currency.format(item.amount())),
-                column("Quantità", item -> number.format(item.quantity())),
-                column("Documenti", item -> number.format(item.documents())));
+        table.getColumns().addAll(text("Codice", ReturnAnalysisItem::code),
+                text("Cliente", ReturnAnalysisItem::name),
+                value("Importo", ReturnAnalysisItem::amount, amount -> currency.format(amount)),
+                value("Quantità", item -> item.quantity(), amount -> number.format(amount)),
+                value("Documenti", item -> item.documents(), amount -> number.format(amount)));
     }
 
     @Override protected void updateSummary(AnalysisPageData<ReturnAnalysisItem> data) {
@@ -29,10 +28,4 @@ public final class ReturnsView extends AnalysisView<ReturnAnalysisItem> {
                 metric("Documenti", number.format(data.summary().count())));
     }
 
-    private TableColumn<ReturnAnalysisItem, String> column(String title,
-            java.util.function.Function<ReturnAnalysisItem, String> value) {
-        TableColumn<ReturnAnalysisItem, String> column = new TableColumn<>(title);
-        column.setCellValueFactory(item -> new SimpleStringProperty(value.apply(item.getValue())));
-        return column;
-    }
 }

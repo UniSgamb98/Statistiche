@@ -3,7 +3,7 @@ package com.orodent.statistiche.features.sales.dashboard.view;
 import com.orodent.statistiche.features.sales.dashboard.model.AnnualSalesComparison;
 import com.orodent.statistiche.features.sales.projection.model.ProjectionMethod;
 import javafx.beans.property.SimpleIntegerProperty;
-import javafx.beans.property.SimpleStringProperty;
+import static com.orodent.statistiche.core.components.TableColumns.value;
 import javafx.scene.control.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -25,13 +25,13 @@ final class AnnualSalesTable extends TableView<AnnualSalesComparison> {
         year.setCellValueFactory(item -> new SimpleIntegerProperty(item.getValue().year()).asObject());
         year.setSortType(TableColumn.SortType.DESCENDING);
         getColumns().addAll(year,
-                column("Fatturato", item -> currency.format(item.summary().netRevenue())),
-                column("Δ registrato", item -> percentage(item.revenueChangePercentage())),
-                column("Previsto 31/12", item -> forecast(item) ? currency.format(item.projection().projectedAnnualRevenue()) : "—"),
-                column("Δ previsto", this::projectedChange),
-                column("Quantità", item -> number.format(item.summary().quantity())),
-                column("Clienti", item -> number.format(item.summary().customers())),
-                column("Media doc.", item -> currency.format(item.summary().averageDocumentValue())));
+                value("Fatturato", item -> item.summary().netRevenue(), currency::format),
+                value("Δ registrato", AnnualSalesComparison::revenueChangePercentage, this::percentage),
+                value("Previsto 31/12", item -> forecast(item) ? item.projection().projectedAnnualRevenue() : null, currency::format),
+                value("Δ previsto", this::projectedChange, this::percentage),
+                value("Quantità", item -> item.summary().quantity(), number::format),
+                value("Clienti", item -> item.summary().customers(), number::format),
+                value("Media doc.", item -> item.summary().averageDocumentValue(), currency::format));
         getSortOrder().add(year);
         setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         setPrefHeight(310);
@@ -44,19 +44,14 @@ final class AnnualSalesTable extends TableView<AnnualSalesComparison> {
     private boolean forecast(AnnualSalesComparison item) {
         return item.projection() != null && item.projection().method() != ProjectionMethod.ACTUAL;
     }
-    private String projectedChange(AnnualSalesComparison item) {
+    private BigDecimal projectedChange(AnnualSalesComparison item) {
         var previous = comparisons.get(item.year() - 1);
-        if (!forecast(item) || previous == null || previous.summary().netRevenue().signum() == 0) return "—";
+        if (!forecast(item) || previous == null || previous.summary().netRevenue().signum() == 0) return null;
         BigDecimal baseline = previous.summary().netRevenue();
-        return percentage(item.projection().projectedAnnualRevenue().subtract(baseline)
-                .multiply(BigDecimal.valueOf(100)).divide(baseline.abs(), 1, RoundingMode.HALF_UP));
+        return item.projection().projectedAnnualRevenue().subtract(baseline)
+                .multiply(BigDecimal.valueOf(100)).divide(baseline.abs(), 1, RoundingMode.HALF_UP);
     }
     private String percentage(BigDecimal value) {
         return value == null ? "—" : (value.signum() > 0 ? "+" : "") + number.format(value) + "%";
-    }
-    private TableColumn<AnnualSalesComparison, String> column(String name, Function<AnnualSalesComparison, String> display) {
-        TableColumn<AnnualSalesComparison, String> column = new TableColumn<>(name);
-        column.setCellValueFactory(item -> new SimpleStringProperty(display.apply(item.getValue())));
-        return column;
     }
 }

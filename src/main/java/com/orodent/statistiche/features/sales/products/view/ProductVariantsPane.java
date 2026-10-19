@@ -1,5 +1,6 @@
 package com.orodent.statistiche.features.sales.products.view;
 
+import com.orodent.statistiche.core.components.TableColumns;
 import com.orodent.statistiche.features.sales.products.model.*;
 import com.orodent.statistiche.features.sales.products.service.ProductTotalsCalculator;
 import javafx.scene.control.*;
@@ -22,10 +23,10 @@ final class ProductVariantsPane extends VBox {
         metric.valueProperty().addListener((observable, before, after) -> render());
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
         table.setPrefHeight(360); table.setPlaceholder(new Label("Nessuna variante nel periodo"));
-        table.getColumns().addAll(ProductTableColumns.text("Variante", ProductVariantValue::variant),
-                ProductTableColumns.numeric("Quantità", value -> value.totals().quantity(), formats::number),
-                ProductTableColumns.numeric("Fatturato", value -> value.totals().revenue(), formats::money));
-        var share = ProductTableColumns.<ProductVariantValue>numeric("Quota %", value -> share(value), formats::percent);
+        table.getColumns().addAll(TableColumns.text("Variante", ProductVariantValue::variant),
+                TableColumns.numeric("Quantità", value -> value.totals().quantity(), formats::number),
+                TableColumns.numeric("Fatturato", value -> value.totals().revenue(), formats::money));
+        var share = TableColumns.<ProductVariantValue>numeric("Quota %", value -> share(value), formats::percent);
         share.setMinWidth(150);
         share.setCellFactory(ignored -> new TableCell<>() {
             @Override protected void updateItem(BigDecimal value, boolean empty) {
