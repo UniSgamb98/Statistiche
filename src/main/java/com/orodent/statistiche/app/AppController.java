@@ -84,7 +84,7 @@ public final class AppController implements AppNavigator {
     private void openCustomers(String code, Integer year) {
         CustomersView view = new CustomersView(); configureHeader(view.header());
         CustomersController controller = new CustomersController(view, app.salesAnalysisService());
-        showView(view, controller::dispose, "/css/features/sales-dashboard.css", "/css/features/customers-analysis.css");
+        showView(view, controller::dispose, "/css/features/sales-dashboard.css", "/css/features/customers-analysis.css", "/css/features/customer-follow-up.css");
         stage.setTitle("Statistiche - Clienti");
         if (code == null) controller.loadInitialData(); else controller.loadInitialData(code, year);
     }

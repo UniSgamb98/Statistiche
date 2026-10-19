@@ -43,6 +43,7 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
     private Consumer<CustomerAnalysisItem> selected = item -> { };
     private List<CustomerAnalysisItem> allCustomers = List.of();
     private boolean notifyCustomerSelection = true;
+    private final CustomerFollowUpPane customerList;
     private boolean notifyYearSelection = true;
     private Consumer<Integer> yearSelected = year -> { };
 
@@ -51,13 +52,13 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
         configureFilters();
         configureDetail();
 
-        table.getSelectionModel().selectedItemProperty().addListener((obs, old, value) -> {
-            if (value != null && notifyCustomerSelection) selected.accept(value);
-        });
         detailScroll.setFitToWidth(true);
         detailScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         detailScroll.getStyleClass().add("customer-detail-scroll");
-        SplitPane split = new SplitPane(table, detailScroll);
+        customerList = new CustomerFollowUpPane(table, item -> {
+            if (notifyCustomerSelection) selected.accept(item);
+        });
+        SplitPane split = new SplitPane(customerList, detailScroll);
         split.setDividerPositions(0.55);
         split.setMinHeight(480);
         split.setPrefHeight(620);
@@ -136,7 +137,8 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
             updateSelectionSilently(() -> {
                 showData(overview.customers());
                 allCustomers = overview.customers().items();
-                filterCustomers(search.getText());
+                customerList.show(allCustomers, overview.followUp());
+                customerList.search(search.getText());
             });
         } finally {
             notifyYearSelection = true;
@@ -146,11 +148,7 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
     public void onYearChanged(Consumer<Integer> handler) { yearSelected = handler; }
 
     private void filterCustomers(String text) {
-        String term = text == null ? "" : text.trim().toLowerCase(Locale.ROOT);
-        if (allCustomers.isEmpty()) return;
-        table.getItems().setAll(allCustomers.stream().filter(item -> term.isEmpty()
-                || item.code().toLowerCase(Locale.ROOT).contains(term)
-                || item.name().toLowerCase(Locale.ROOT).contains(term)).toList());
+        if (customerList != null) updateSelectionSilently(() -> customerList.search(text));
     }
 
     public void onCustomerSelected(Consumer<CustomerAnalysisItem> handler) { selected = handler; }
@@ -159,6 +157,7 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
 
     public void selectCustomerSilently(CustomerAnalysisItem customer) {
         updateSelectionSilently(() -> {
+            customerList.select(customer);
             if (table.getItems().contains(customer)) {
                 table.getSelectionModel().select(customer);
                 table.scrollTo(customer);
@@ -169,7 +168,10 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
     }
 
     public void clearCustomerSelection() {
-        updateSelectionSilently(() -> table.getSelectionModel().clearSelection());
+        updateSelectionSilently(() -> {
+            table.getSelectionModel().clearSelection();
+            customerList.clearSelection();
+        });
     }
 
     public void showCustomerUnavailable(String customerName, String customerCode, int year) {

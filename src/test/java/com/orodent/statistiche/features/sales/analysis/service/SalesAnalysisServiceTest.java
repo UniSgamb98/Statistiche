@@ -30,13 +30,18 @@ class SalesAnalysisServiceTest {
     }
 
     @Test
-    void loadsCustomerOverviewWithoutTheHistoryRepository() {
+    void loadsCustomerOverviewWithoutLoadingIndividualCustomerHistory() {
         FakeRepository repository = new FakeRepository();
+        FakeCustomerRepository customers = new FakeCustomerRepository();
         SalesAnalysisService service = new SalesAnalysisService(connectionProvider(), Runnable::run,
-                c -> repository, c -> { throw new AssertionError("Unneeded history repository"); });
+                c -> repository, c -> customers);
         CustomerOverviewData result = service.loadCustomerOverview(2025).join();
         assertEquals(2025, result.customers().selectedYear());
         assertEquals("Cliente Uno", result.customers().items().getFirst().name());
+        assertEquals(1, customers.batchRequests);
+        assertEquals(0, customers.individualRequests);
+        assertEquals(0, customers.historyRequests);
+        assertEquals(0, customers.periodStarts.size());
     }
 
     @Test
@@ -109,6 +114,26 @@ class SalesAnalysisServiceTest {
                 java.time.LocalDate.of(2025, 1, 1), java.time.LocalDate.of(2024, 1, 1)), customers.periodStarts);
     }
 
+    @Test
+    void overviewLoadsFollowUpDatesInOneBatchAndUsesArchiveReference() {
+        FakeCustomerRepository customers = new FakeCustomerRepository();
+        customers.through = java.time.LocalDate.of(2025, 1, 31);
+        SalesAnalysisService service = new SalesAnalysisService(connectionProvider(), Runnable::run,
+                connection -> new FakeRepository(), connection -> customers);
+        var overview = service.loadCustomerOverview(2025).join();
+        assertEquals(customers.through, overview.followUp().reference());
+        assertEquals(1, customers.batchRequests);
+        assertEquals(0, customers.individualRequests);
+        assertEquals(2025, customers.batchYear);
+        assertEquals(customers.through, customers.batchThrough);
+        var item = overview.followUp().items().getFirst();
+        assertEquals(10, item.recencyDays());
+        assertEquals(new BigDecimal("10.0"), item.frequency().averageDays());
+        assertEquals(new BigDecimal("10.0"), item.frequency().typicalDays());
+        assertEquals(overview.customers().items().getFirst(), item.customer());
+        assertEquals(10, service.loadCustomerDetail("C1", 2025, 1).join().detail().daysSinceLastPurchase());
+    }
+
     private ConnectionProvider connectionProvider() {
         return () -> (Connection) Proxy.newProxyInstance(Connection.class.getClassLoader(),
                 new Class<?>[]{Connection.class}, (proxy, method, args) -> null);
@@ -135,6 +160,9 @@ class SalesAnalysisServiceTest {
 
     private static final class FakeCustomerRepository implements CustomerAnalysisRepository {
         final java.util.List<java.time.LocalDate> periodStarts = new java.util.ArrayList<>();
+        int batchRequests, individualRequests, batchYear, historyRequests;
+        java.time.LocalDate batchThrough;
+        java.time.LocalDate through = java.time.LocalDate.of(2025, 12, 31);
         String monthlyCustomerCode;
         int monthlyFromYear;
         int monthlyToYear;
@@ -144,11 +172,17 @@ class SalesAnalysisServiceTest {
                     new BigDecimal("4.00"), null, null, java.time.LocalDate.of(2025, 1, 1),
                     java.time.LocalDate.of(2025, 1, 21), 0);
         }
+        public java.util.Map<String, List<java.time.LocalDate>> loadPurchaseDates(int year, java.time.LocalDate through) {
+            batchRequests++; batchYear = year; batchThrough = through;
+            return java.util.Map.of("C1", List.of(java.time.LocalDate.of(2025, 1, 1),
+                    java.time.LocalDate.of(2025, 1, 11), java.time.LocalDate.of(2025, 1, 21)));
+        }
         public List<java.time.LocalDate> loadPurchaseDates(String code, int year) {
+            individualRequests++;
             return List.of(java.time.LocalDate.of(2025, 1, 1), java.time.LocalDate.of(2025, 1, 11),
                     java.time.LocalDate.of(2025, 1, 21));
         }
-        public List<CustomerYearSummary> loadYearlyHistory(String code) { return List.of(); }
+        public List<CustomerYearSummary> loadYearlyHistory(String code) { historyRequests++; return List.of(); }
         public List<CustomerMonthlyValue> loadMonthlyHistory(String code, int fromYear, int toYear) {
             monthlyCustomerCode = code;
             monthlyFromYear = fromYear;
@@ -161,10 +195,11 @@ class SalesAnalysisServiceTest {
         }
         public List<CustomerProductItem> loadProducts(String code, int year) { return List.of(); }
         public SalesDataCoverage loadDataCoverage() {
-            return new SalesDataCoverage(java.time.LocalDate.of(2020, 1, 1), java.time.LocalDate.of(2025, 12, 31));
+            return new SalesDataCoverage(java.time.LocalDate.of(2020, 1, 1), through);
         }
         public List<com.orodent.statistiche.features.sales.projection.model.DailyMetricValue> loadDailyQuantityHistory(String code, int fromYear, int toYear) { return List.of(); }
         public List<DailyRevenueValue> loadDailyRevenueHistory(String code, int fromYear, int toYear) {
+            historyRequests++;
             return List.of();
         }
     }

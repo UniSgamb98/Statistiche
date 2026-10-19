@@ -39,6 +39,25 @@ public final class CustomerAnalysisRepositoryImpl implements CustomerAnalysisRep
         } catch(SQLException e){throw failure(e);}
     }
 
+    @Override public Map<String, List<LocalDate>> loadPurchaseDates(int year, LocalDate through) {
+        String sql = """
+                SELECT DISTINCT codice_cliente, data_vendita FROM vendite_dettaglio
+                WHERE data_vendita BETWEEN ? AND ? AND tipo_operazione='VENDITA'
+                ORDER BY codice_cliente, data_vendita
+                """;
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setDate(1, java.sql.Date.valueOf(LocalDate.of(year, 1, 1)));
+            statement.setDate(2, java.sql.Date.valueOf(through));
+            try (ResultSet result = statement.executeQuery()) {
+                Map<String, List<LocalDate>> dates = new LinkedHashMap<>();
+                while (result.next()) dates.computeIfAbsent(result.getString(1), ignored -> new ArrayList<>())
+                        .add(result.getDate(2).toLocalDate());
+                dates.replaceAll((code, values) -> List.copyOf(values));
+                return Map.copyOf(dates);
+            }
+        } catch (SQLException exception) { throw failure(exception); }
+    }
+
     @Override public List<LocalDate> loadPurchaseDates(String code,int year){
         String sql="SELECT DISTINCT data_vendita FROM vendite_dettaglio WHERE codice_cliente=? AND YEAR(data_vendita)=? AND tipo_operazione='VENDITA' ORDER BY data_vendita";
         try(PreparedStatement ps=connection.prepareStatement(sql)){ps.setString(1,code);ps.setInt(2,year);

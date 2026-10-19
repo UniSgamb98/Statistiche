@@ -15,6 +15,8 @@ import com.orodent.statistiche.features.sales.customers.service.CustomerTrendPer
 import com.orodent.statistiche.features.sales.projection.service.RevenueProjectionCalculator;
 import com.orodent.statistiche.features.sales.customers.service.CustomerProjectionService;
 
+import com.orodent.statistiche.features.sales.customers.service.CustomerFrequencyCalculator;
+import com.orodent.statistiche.features.sales.customers.service.CustomerFollowUpCalculator;
 import java.sql.Connection;
 import java.time.Year;
 import java.util.List;
@@ -53,21 +55,33 @@ public final class SalesAnalysisService {
     }
 
     public CompletableFuture<AnalysisPageData<CustomerAnalysisItem>> loadCustomers(Integer year) {
-        return CompletableFuture.supplyAsync(() -> connectionProvider.withConnection(connection -> {
-            SalesAnalysisRepository repository = repositoryFactory.apply(connection);
-            List<Integer> years = repository.findAvailableYears();
-            int selected = selectYear(year, years);
-            List<CustomerAnalysisItem> items = repository.loadCustomers(selected);
-            AnalysisSummary summary = new AnalysisSummary(
-                    items.stream().map(CustomerAnalysisItem::revenue).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add),
-                    items.stream().map(CustomerAnalysisItem::quantity).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add),
-                    java.math.BigDecimal.ZERO, items.size());
-            return new AnalysisPageData<>(years, selected, summary, items);
-        }), executor);
+        return CompletableFuture.supplyAsync(() -> connectionProvider.withConnection(
+                connection -> loadCustomerPage(connection, year)), executor);
+    }
+
+    private AnalysisPageData<CustomerAnalysisItem> loadCustomerPage(Connection connection, Integer year) {
+        SalesAnalysisRepository repository = repositoryFactory.apply(connection);
+        List<Integer> years = repository.findAvailableYears();
+        int selected = selectYear(year, years);
+        List<CustomerAnalysisItem> items = repository.loadCustomers(selected);
+        AnalysisSummary summary = new AnalysisSummary(
+                items.stream().map(CustomerAnalysisItem::revenue).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add),
+                items.stream().map(CustomerAnalysisItem::quantity).reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add),
+                java.math.BigDecimal.ZERO, items.size());
+        return new AnalysisPageData<>(years, selected, summary, items);
     }
 
     public CompletableFuture<CustomerOverviewData> loadCustomerOverview(Integer year) {
-        return loadCustomers(year).thenApply(CustomerOverviewData::new);
+        return CompletableFuture.supplyAsync(() -> connectionProvider.withConnection(connection -> {
+            AnalysisPageData<CustomerAnalysisItem> page = loadCustomerPage(connection, year);
+            CustomerAnalysisRepository repository = customerRepositoryFactory.apply(connection);
+            CustomerFollowUpCalculator calculator = new CustomerFollowUpCalculator();
+            java.time.LocalDate through = page.items().isEmpty() ? null : repository.loadDataCoverage().through();
+            java.time.LocalDate reference = calculator.referenceDate(page.selectedYear(), through, java.time.LocalDate.now());
+            CustomerFollowUpData followUp = calculator.calculate(page.selectedYear(), reference, page.items(),
+                    page.items().isEmpty() ? java.util.Map.of() : repository.loadPurchaseDates(page.selectedYear(), reference));
+            return new CustomerOverviewData(page, followUp);
+        }), executor);
     }
 
     public CompletableFuture<CustomerDetailData> loadCustomerDetail(
@@ -77,17 +91,15 @@ public final class SalesAnalysisService {
             CustomerAnalysisRepository repository = customerRepositoryFactory.apply(connection);
             CustomerDetail base = repository.loadBaseDetail(customerCode, year);
             List<java.time.LocalDate> dates = repository.loadPurchaseDates(customerCode, year);
-            java.math.BigDecimal averageFrequency = averageFrequency(dates);
-            java.math.BigDecimal typicalFrequency = typicalFrequency(dates);
-            java.time.LocalDate reference = year == java.time.Year.now().getValue()
-                    ? java.time.LocalDate.now() : java.time.LocalDate.of(year, 12, 31);
+            CustomerFrequency frequency = new CustomerFrequencyCalculator().calculate(dates);
+            SalesDataCoverage coverage = repository.loadDataCoverage();
+            java.time.LocalDate reference = new CustomerFollowUpCalculator().referenceDate(year, coverage.through(), java.time.LocalDate.now());
             long recency = java.time.temporal.ChronoUnit.DAYS.between(base.lastPurchase(), reference);
             CustomerDetail detail = new CustomerDetail(base.code(), base.name(), base.country(), base.category(),
                     base.priceList(), base.agent(), base.customerType(), base.revenue(), base.quantity(), base.documents(),
-                    base.averageDocumentValue(), base.averageDocumentQuantity(), averageFrequency, typicalFrequency,
+                    base.averageDocumentValue(), base.averageDocumentQuantity(), frequency.averageDays(), frequency.typicalDays(),
                     base.firstPurchase(), base.lastPurchase(), Math.max(recency, 0));
             int fromYear = Math.max(year - previousYears, 0);
-            SalesDataCoverage coverage = repository.loadDataCoverage();
             java.time.LocalDate trendReference = trendPeriodResolver.referenceDate(year, coverage, java.time.LocalDate.now());
             int trendFromYear = Math.max(trendReference.getYear() - 2, 0);
             List<CustomerYearSummary> yearly = repository.loadYearlyHistory(customerCode);
@@ -131,33 +143,6 @@ public final class SalesAnalysisService {
                 repository.loadPeriodTotals(customerCode, period.from(), period.through()),
                 repository.loadPeriodTotals(customerCode, period.previousFrom(), period.previousThrough()),
                 coverage, annual);
-    }
-
-    private java.math.BigDecimal averageFrequency(List<java.time.LocalDate> dates) {
-        List<Long> intervals = intervals(dates);
-        if (intervals.isEmpty()) return null;
-        long total = intervals.stream().mapToLong(Long::longValue).sum();
-        return java.math.BigDecimal.valueOf(total)
-                .divide(java.math.BigDecimal.valueOf(intervals.size()), 1, java.math.RoundingMode.HALF_UP);
-    }
-
-    private java.math.BigDecimal typicalFrequency(List<java.time.LocalDate> dates) {
-        List<Long> intervals = intervals(dates);
-        if (intervals.isEmpty()) return null;
-        int middle = intervals.size() / 2;
-        return intervals.size() % 2 == 1
-                ? java.math.BigDecimal.valueOf(intervals.get(middle))
-                : java.math.BigDecimal.valueOf(intervals.get(middle - 1) + intervals.get(middle))
-                        .divide(java.math.BigDecimal.valueOf(2), 1, java.math.RoundingMode.HALF_UP);
-    }
-
-    private List<Long> intervals(List<java.time.LocalDate> dates) {
-        List<Long> values = new java.util.ArrayList<>();
-        for (int index = 1; index < dates.size(); index++) {
-            values.add(java.time.temporal.ChronoUnit.DAYS.between(dates.get(index - 1), dates.get(index)));
-        }
-        values.sort(Long::compareTo);
-        return values;
     }
 
     public CompletableFuture<AnalysisPageData<ProductAnalysisItem>> loadProducts(Integer year) {

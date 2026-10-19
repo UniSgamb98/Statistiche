@@ -8,6 +8,7 @@ import java.util.List;
 
 public interface CustomerAnalysisRepository {
     CustomerDetail loadBaseDetail(String customerCode, int year);
+    java.util.Map<String, List<LocalDate>> loadPurchaseDates(int year, LocalDate through);
     List<LocalDate> loadPurchaseDates(String customerCode, int year);
     List<CustomerYearSummary> loadYearlyHistory(String customerCode);
     List<CustomerMonthlyValue> loadMonthlyHistory(String customerCode, int fromYear, int toYear);
