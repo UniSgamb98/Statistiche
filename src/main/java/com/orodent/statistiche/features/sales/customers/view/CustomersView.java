@@ -127,8 +127,7 @@ public final class CustomersView extends AnalysisView<CustomerAnalysisItem> {
                 text("Ragione sociale", CustomerAnalysisItem::name),
                 value("Fatturato", item -> item.revenue(), amount -> currency.format(amount)),
                 value("Quantità", item -> item.quantity(), amount -> number.format(amount)),
-                value("Documenti", item -> item.documents(), amount -> number.format(amount)),
-                value("Ultima vendita", CustomerAnalysisItem::lastSale, date -> date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))));
+                text("PriceList", item -> item.priceList() == null || item.priceList().isBlank() ? "—" : item.priceList()));
     }
 
     public void showOverview(CustomerOverviewData overview) {

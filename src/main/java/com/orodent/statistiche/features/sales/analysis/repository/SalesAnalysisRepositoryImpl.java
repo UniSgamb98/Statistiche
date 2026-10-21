@@ -28,7 +28,8 @@ public final class SalesAnalysisRepositoryImpl implements SalesAnalysisRepositor
                        SUM(CASE WHEN v.tipo_operazione='VENDITA' THEN COALESCE(v.importo_netto,0)
                                 ELSE -ABS(COALESCE(v.importo_netto,0)) END) fatturato,
                        SUM(CASE WHEN v.tipo_operazione='VENDITA' THEN v.quantita ELSE -ABS(v.quantita) END) quantita,
-                       COUNT(DISTINCT v.documento_id) documenti, MAX(v.data_vendita) ultima_vendita
+                       COUNT(DISTINCT v.documento_id) documenti, MAX(v.data_vendita) ultima_vendita,
+                       MAX(c.listino) listino
                 FROM vendite_dettaglio v LEFT JOIN clienti c ON c.codice_cliente=v.codice_cliente
                 WHERE YEAR(v.data_vendita)=? GROUP BY v.codice_cliente ORDER BY fatturato DESC
                 """;
@@ -36,7 +37,7 @@ public final class SalesAnalysisRepositoryImpl implements SalesAnalysisRepositor
             List<CustomerAnalysisItem> items = new ArrayList<>();
             while (rs.next()) items.add(new CustomerAnalysisItem(rs.getString("codice"), rs.getString("nome"),
                     rs.getBigDecimal("fatturato"), rs.getBigDecimal("quantita"), rs.getInt("documenti"),
-                    rs.getDate("ultima_vendita").toLocalDate()));
+                    rs.getDate("ultima_vendita").toLocalDate(), rs.getString("listino")));
             return List.copyOf(items);
         } catch (SQLException e) { throw failure("clienti", e); }
     }
